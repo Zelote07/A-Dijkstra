@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from grid_pathfinder import solve_dijkstra, solve_astar
+from grid_pathfinder import solve_dijkstra, solve_astar, solve_dfs
 
 app = Flask(__name__)
 
@@ -42,13 +42,23 @@ def solve():
         
     # Run A* if requested
     if algorithm in ('astar', 'both'):
-        a_path, a_explored, a_time = solve_astar(rows, cols, start, end, obstacles)
+        heuristic_type = data.get('heuristic', 'manhattan')
+        a_path, a_explored, a_time = solve_astar(rows, cols, start, end, obstacles, heuristic_type)
         results['astar'] = {
             'path': a_path,
             'explored': a_explored,
             'duration_ms': a_time,
             'nodes_explored_count': len(a_explored)
         }
+        
+    # Always run DFS to keep payload complete
+    dfs_path, dfs_explored, dfs_time = solve_dfs(rows, cols, start, end, obstacles)
+    results['dfs'] = {
+        'path': dfs_path,
+        'explored': dfs_explored,
+        'duration_ms': dfs_time,
+        'nodes_explored_count': len(dfs_explored)
+    }
         
     return jsonify(results)
 

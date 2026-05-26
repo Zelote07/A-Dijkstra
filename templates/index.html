@@ -29,6 +29,11 @@
             --astar-visited: rgba(236, 72, 153, 0.35);
             --astar-visited-new: rgba(192, 38, 211, 0.7);
             
+            --dfs-primary: #f1c40f;
+            --dfs-secondary: rgba(241, 196, 15, 0.15);
+            --dfs-visited: rgba(241, 196, 15, 0.35);
+            --dfs-visited-new: rgba(243, 156, 18, 0.7);
+            
             --start-color: #10b981;
             --end-color: #ef4444;
             --obstacle-color: #1e293b;
@@ -482,6 +487,49 @@
             background: rgba(0, 0, 0, 0.2);
         }
 
+        .dfs-theme { color: var(--dfs-primary); }
+
+        .algo-select option {
+            background-color: #121420;
+            color: var(--text-main);
+        }
+
+        /* DFS Visited & Path */
+        .cell.visited-dfs {
+            animation: visitedDfs 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .cell.path-dfs {
+            animation: pathDfs 0.5s ease-in-out forwards;
+            box-shadow: 0 0 8px var(--dfs-primary);
+        }
+        
+        @keyframes visitedDfs {
+            0% {
+                transform: scale(0.3);
+                background-color: var(--dfs-secondary);
+                border-radius: 100%;
+            }
+            50% {
+                background-color: var(--dfs-visited-new);
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--dfs-visited);
+                border-radius: 1px;
+            }
+        }
+
+        @keyframes pathDfs {
+            0% {
+                transform: scale(0.6);
+                background-color: #f39c12;
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--dfs-primary);
+            }
+        }
+
         .highlight-win {
             color: var(--start-color);
             text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
@@ -510,12 +558,22 @@
         </div>
 
         <div class="control-group">
+            <label for="heuristic-select">Heuristique A* :</label>
+            <select id="heuristic-select">
+                <option value="manhattan" selected>Manhattan (Admissible & Consistante)</option>
+                <option value="euclidean">Euclidienne (Admissible, Sous-estimée)</option>
+                <option value="weighted_manhattan">Manhattan Pondérée (x3, Inadmissible)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
             <button id="btn-set-start" class="btn btn-start-select"><i class="fa-solid fa-location-dot"></i> Placer Départ</button>
             <button id="btn-set-end" class="btn btn-end-select"><i class="fa-solid fa-flag"></i> Placer Arrivée</button>
         </div>
 
         <div class="control-group">
             <button id="btn-generate-maze" class="btn"><i class="fa-solid fa-shuffle"></i> Labyrinthe Aléatoire</button>
+            <button id="btn-astar-trap" class="btn" style="border-color: #f39c12; color: #f39c12;"><i class="fa-solid fa-skull-crossbones"></i> Piège A* (Dijkstra Gagne)</button>
             <button id="btn-clear-walls" class="btn"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
             <button id="btn-clear-path" class="btn"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
         </div>
@@ -541,13 +599,20 @@
     <div class="workspace">
         <!-- Grids Panels -->
         <div class="grids-container">
-            <!-- Dijkstra Grid Panel -->
+            <!-- Left Grid Panel -->
             <div class="grid-panel">
                 <div class="grid-header">
-                    <div class="grid-title"><i class="fa-solid fa-compass dijkstra-theme"></i> Dijkstra</div>
+                    <div class="grid-title">
+                        <i class="fa-solid fa-compass dijkstra-theme" id="left-algo-icon"></i>
+                        <select id="left-algo-select" class="algo-select dijkstra-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
+                            <option value="dijkstra" selected>Dijkstra</option>
+                            <option value="astar">A*</option>
+                            <option value="dfs">DFS (Profondeur)</option>
+                        </select>
+                    </div>
                     <div class="stats-badge-container">
-                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-dijkstra">- ms</span></div>
-                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-dijkstra">- nœuds</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-left">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-left">- nœuds</span></div>
                     </div>
                 </div>
                 <div class="grid-wrapper">
@@ -555,13 +620,20 @@
                 </div>
             </div>
 
-            <!-- A* Grid Panel -->
+            <!-- Right Grid Panel -->
             <div class="grid-panel">
                 <div class="grid-header">
-                    <div class="grid-title"><i class="fa-solid fa-bullseye astar-theme"></i> A* (Manhattan)</div>
+                    <div class="grid-title">
+                        <i class="fa-solid fa-bullseye astar-theme" id="right-algo-icon"></i>
+                        <select id="right-algo-select" class="algo-select astar-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
+                            <option value="dijkstra">Dijkstra</option>
+                            <option value="astar" selected>A*</option>
+                            <option value="dfs">DFS (Profondeur)</option>
+                        </select>
+                    </div>
                     <div class="stats-badge-container">
-                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-astar">- ms</span></div>
-                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-astar">- nœuds</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-right">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-right">- nœuds</span></div>
                     </div>
                 </div>
                 <div class="grid-wrapper">
@@ -577,35 +649,33 @@
                 <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">
                     Les calculs sont effectués en Python sur le serveur. L'animation montre l'ordre exact d'exploration des nœuds.
                 </p>
-            </div>
-
-            <div class="comparison-card">
+                  <div class="comparison-card">
                 <h4 style="font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.35rem;">Résultats Algorithmiques</h4>
                 
                 <div class="comparison-row">
                     <div class="comparison-label"><i class="fa-solid fa-arrows-left-right"></i> Longueur du chemin</div>
                     <div class="comparison-values">
-                        <span class="dijkstra-theme" id="path-len-dijkstra">-</span> / 
-                        <span class="astar-theme" id="path-len-astar">-</span>
+                        <span id="path-len-left">-</span> / 
+                        <span id="path-len-right">-</span>
                     </div>
                 </div>
 
                 <div class="comparison-row">
                     <div class="comparison-label"><i class="fa-solid fa-eye"></i> Nœuds visités</div>
                     <div class="comparison-values">
-                        <span class="dijkstra-theme" id="nodes-count-dijkstra">-</span> vs 
-                        <span class="astar-theme" id="nodes-count-astar">-</span>
+                        <span id="nodes-count-left">-</span> vs 
+                        <span id="nodes-count-right">-</span>
                     </div>
                 </div>
 
                 <div class="comparison-row">
                     <div class="comparison-label"><i class="fa-solid fa-stopwatch"></i> Temps de calcul</div>
                     <div class="comparison-values">
-                        <span class="dijkstra-theme" id="time-val-dijkstra">- ms</span> vs 
-                        <span class="astar-theme" id="time-val-astar">- ms</span>
+                        <span id="time-val-left">- ms</span> vs 
+                        <span id="time-val-right">- ms</span>
                     </div>
                 </div>
-            </div>
+            </div>           </div>
 
             <div>
                 <h3 class="dashboard-section-title"><i class="fa-solid fa-lightbulb"></i> Analyse A*</h3>
@@ -639,9 +709,13 @@
 
         // DOM elements
         const gridSizeSelect = document.getElementById('grid-size');
+        const heuristicSelect = document.getElementById('heuristic-select');
+        const leftAlgoSelect = document.getElementById('left-algo-select');
+        const rightAlgoSelect = document.getElementById('right-algo-select');
         const btnSetStart = document.getElementById('btn-set-start');
         const btnSetEnd = document.getElementById('btn-set-end');
         const btnGenerateMaze = document.getElementById('btn-generate-maze');
+        const btnAStarTrap = document.getElementById('btn-astar-trap');
         const btnClearWalls = document.getElementById('btn-clear-walls');
         const btnClearPath = document.getElementById('btn-clear-path');
         const btnRun = document.getElementById('btn-run');
@@ -663,10 +737,27 @@
                 endPos = [rows - 1, cols - 1];
             }
             
-            setupGridElement(gridDijkstra, 'dijkstra');
-            setupGridElement(gridAstar, 'astar');
+            setupGridElement(gridDijkstra, 'left');
+            setupGridElement(gridAstar, 'right');
             
+            updateAlgoPanelThemes();
             resetStats();
+        }
+
+        function updateAlgoPanelThemes() {
+            // Update left panel
+            const leftVal = leftAlgoSelect.value;
+            leftAlgoSelect.className = `algo-select ${leftVal}-theme`;
+            const leftIcon = document.getElementById('left-algo-icon');
+            leftIcon.className = leftVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
+                               (leftVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
+            
+            // Update right panel
+            const rightVal = rightAlgoSelect.value;
+            rightAlgoSelect.className = `algo-select ${rightVal}-theme`;
+            const rightIcon = document.getElementById('right-algo-icon');
+            rightIcon.className = rightVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
+                                (rightVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
         }
 
         function setupGridElement(gridEl, type) {
@@ -793,6 +884,62 @@
             resetStats();
         }
 
+        // --- A* Trap (Dijkstra Wins) Generation ---
+        function generateAStarTrap() {
+            if (isAnimating) return;
+            stopAnimations();
+            clearPathColors();
+            obstacles.clear();
+            
+            // Force 20x20 dimensions for the spiral to look perfect
+            gridSizeSelect.value = "20";
+            rows = 20;
+            cols = 20;
+            
+            // Re-render grids to ensure size updates correctly
+            setupGridElement(gridDijkstra, 'dijkstra');
+            setupGridElement(gridAstar, 'astar');
+            
+            function line(r1, c1, r2, c2) {
+                const pts = [];
+                if (r1 === r2) {
+                    const step = c1 < c2 ? 1 : -1;
+                    for (let c = c1; c !== c2 + step; c += step) pts.push([r1, c]);
+                } else if (c1 === c2) {
+                    const step = r1 < r2 ? 1 : -1;
+                    for (let r = r1; r !== r2 + step; r += step) pts.push([r, c1]);
+                }
+                return pts;
+            }
+            
+            // Draw a spiral starting from outer to inner
+            const walls = [
+                // Outer wall
+                ...line(2, 2, 2, 17), ...line(2, 17, 17, 17), ...line(17, 17, 17, 2), ...line(17, 2, 4, 2),
+                // Inner loop 1
+                ...line(4, 4, 4, 15), ...line(4, 15, 15, 15), ...line(15, 15, 15, 4), ...line(15, 4, 6, 4),
+                // Inner loop 2
+                ...line(6, 6, 6, 13), ...line(6, 13, 13, 13), ...line(13, 13, 13, 6), ...line(13, 6, 8, 6),
+                // Inner loop 3
+                ...line(8, 8, 8, 11), ...line(8, 11, 11, 11), ...line(11, 11, 11, 8)
+            ];
+            
+            walls.forEach(([r, c]) => {
+                obstacles.add(`${r},${c}`);
+            });
+            
+            // Start is in the center, End is in the outer corridor
+            startPos = [9, 9];
+            endPos = [3, 3];
+            
+            // Clean up start and end cells
+            obstacles.delete(`${startPos[0]},${startPos[1]}`);
+            obstacles.delete(`${endPos[0]},${endPos[1]}`);
+            
+            syncAllCells();
+            resetStats();
+        }
+
         // --- Clearing operations ---
         function clearWalls() {
             if (isAnimating) return;
@@ -806,7 +953,11 @@
         function clearPathColors() {
             const cells = document.querySelectorAll('.cell');
             cells.forEach(cell => {
-                cell.classList.remove('visited-dijkstra', 'path-dijkstra', 'visited-astar', 'path-astar');
+                cell.classList.remove(
+                    'visited-dijkstra', 'path-dijkstra', 
+                    'visited-astar', 'path-astar',
+                    'visited-dfs', 'path-dfs'
+                );
             });
         }
 
@@ -819,17 +970,17 @@
         }
 
         function resetStats() {
-            document.getElementById('stat-time-dijkstra').textContent = '- ms';
-            document.getElementById('stat-nodes-dijkstra').textContent = '- nœuds';
-            document.getElementById('stat-time-astar').textContent = '- ms';
-            document.getElementById('stat-nodes-astar').textContent = '- nœuds';
+            document.getElementById('stat-time-left').textContent = '- ms';
+            document.getElementById('stat-nodes-left').textContent = '- nœuds';
+            document.getElementById('stat-time-right').textContent = '- ms';
+            document.getElementById('stat-nodes-right').textContent = '- nœuds';
             
-            document.getElementById('path-len-dijkstra').textContent = '-';
-            document.getElementById('path-len-astar').textContent = '-';
-            document.getElementById('nodes-count-dijkstra').textContent = '-';
-            document.getElementById('nodes-count-astar').textContent = '-';
-            document.getElementById('time-val-dijkstra').textContent = '- ms';
-            document.getElementById('time-val-astar').textContent = '- ms';
+            document.getElementById('path-len-left').textContent = '-';
+            document.getElementById('path-len-right').textContent = '-';
+            document.getElementById('nodes-count-left').textContent = '-';
+            document.getElementById('nodes-count-right').textContent = '-';
+            document.getElementById('time-val-left').textContent = '- ms';
+            document.getElementById('time-val-right').textContent = '- ms';
             
             document.getElementById('summary-container').innerHTML = `
                 <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
@@ -863,7 +1014,8 @@
                 start: startPos,
                 end: endPos,
                 obstacles: obstaclesArray,
-                algorithm: 'both'
+                algorithm: 'both',
+                heuristic: heuristicSelect.value
             };
             
             try {
@@ -891,42 +1043,43 @@
             btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Animation en cours...`;
             
             const speed = parseInt(speedSlider.value);
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
             
-            // Extract solutions
-            const dijkstraExplored = data.dijkstra.explored;
-            const dijkstraPath = data.dijkstra.path;
+            const leftData = data[leftAlgo];
+            const rightData = data[rightAlgo];
             
-            const astarExplored = data.astar.explored;
-            const astarPath = data.astar.path;
+            const leftExplored = leftData.explored;
+            const leftPath = leftData.path;
             
-            let dIdx = 0;
-            let aIdx = 0;
+            const rightExplored = rightData.explored;
+            const rightPath = rightData.path;
             
-            const maxSteps = Math.max(dijkstraExplored.length, astarExplored.length);
+            let lIdx = 0;
+            let rIdx = 0;
             
             const timer = setInterval(() => {
                 let active = false;
                 
-                // Animate Dijkstra step
-                if (dIdx < dijkstraExplored.length) {
-                    const [r, c] = dijkstraExplored[dIdx];
-                    // Skip if start or end
+                // Animate Left Grid step
+                if (lIdx < leftExplored.length) {
+                    const [r, c] = leftExplored[lIdx];
                     if (!isStartOrEnd(r, c)) {
                         const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add('visited-dijkstra');
+                        if (cell) cell.classList.add(`visited-${leftAlgo}`);
                     }
-                    dIdx++;
+                    lIdx++;
                     active = true;
                 }
                 
-                // Animate A* step
-                if (aIdx < astarExplored.length) {
-                    const [r, c] = astarExplored[aIdx];
+                // Animate Right Grid step
+                if (rIdx < rightExplored.length) {
+                    const [r, c] = rightExplored[rIdx];
                     if (!isStartOrEnd(r, c)) {
                         const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add('visited-astar');
+                        if (cell) cell.classList.add(`visited-${rightAlgo}`);
                     }
-                    aIdx++;
+                    rIdx++;
                     active = true;
                 }
                 
@@ -934,39 +1087,41 @@
                 if (!active) {
                     clearInterval(timer);
                     // Draw paths
-                    drawPaths(dijkstraPath, astarPath, data);
+                    drawPaths(leftPath, rightPath, data);
                 }
             }, 1000 / speed);
             
             animationIntervals.push(timer);
         }
 
-        function drawPaths(dijkstraPath, astarPath, data) {
+        function drawPaths(leftPath, rightPath, data) {
             let pathSpeed = Math.max(5, Math.floor(100 / parseInt(speedSlider.value)));
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
             
-            let dIdx = 0;
-            let aIdx = 0;
+            let lIdx = 0;
+            let rIdx = 0;
             
             const drawTimer = setInterval(() => {
                 let active = false;
                 
-                if (dijkstraPath && dIdx < dijkstraPath.length) {
-                    const [r, c] = dijkstraPath[dIdx];
+                if (leftPath && lIdx < leftPath.length) {
+                    const [r, c] = leftPath[lIdx];
                     if (!isStartOrEnd(r, c)) {
                         const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add('path-dijkstra');
+                        if (cell) cell.classList.add(`path-${leftAlgo}`);
                     }
-                    dIdx++;
+                    lIdx++;
                     active = true;
                 }
                 
-                if (astarPath && aIdx < astarPath.length) {
-                    const [r, c] = astarPath[aIdx];
+                if (rightPath && rIdx < rightPath.length) {
+                    const [r, c] = rightPath[rIdx];
                     if (!isStartOrEnd(r, c)) {
                         const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add('path-astar');
+                        if (cell) cell.classList.add(`path-${rightAlgo}`);
                     }
-                    aIdx++;
+                    rIdx++;
                     active = true;
                 }
                 
@@ -986,49 +1141,91 @@
         }
 
         function displayFinalStats(data) {
-            // Update panel headers badges
-            document.getElementById('stat-time-dijkstra').textContent = `${data.dijkstra.duration_ms.toFixed(3)} ms`;
-            document.getElementById('stat-nodes-dijkstra').textContent = `${data.dijkstra.nodes_explored_count} nœuds`;
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
             
-            document.getElementById('stat-time-astar').textContent = `${data.astar.duration_ms.toFixed(3)} ms`;
-            document.getElementById('stat-nodes-astar').textContent = `${data.astar.nodes_explored_count} nœuds`;
+            const leftData = data[leftAlgo];
+            const rightData = data[rightAlgo];
+            
+            // Update panel headers badges
+            document.getElementById('stat-time-left').textContent = `${leftData.duration_ms.toFixed(3)} ms`;
+            document.getElementById('stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
+            
+            document.getElementById('stat-time-right').textContent = `${rightData.duration_ms.toFixed(3)} ms`;
+            document.getElementById('stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
             
             // Update sidebar dashboard
-            const dLen = data.dijkstra.path ? data.dijkstra.path.length : 'Aucun';
-            const aLen = data.astar.path ? data.astar.path.length : 'Aucun';
+            const lLen = leftData.path ? leftData.path.length : 'Aucun';
+            const rLen = rightData.path ? rightData.path.length : 'Aucun';
             
-            document.getElementById('path-len-dijkstra').textContent = dLen;
-            document.getElementById('path-len-astar').textContent = aLen;
+            document.getElementById('path-len-left').textContent = lLen;
+            document.getElementById('path-len-right').textContent = rLen;
             
-            document.getElementById('nodes-count-dijkstra').textContent = data.dijkstra.nodes_explored_count;
-            document.getElementById('nodes-count-astar').textContent = data.astar.nodes_explored_count;
+            document.getElementById('nodes-count-left').textContent = leftData.nodes_explored_count;
+            document.getElementById('nodes-count-right').textContent = rightData.nodes_explored_count;
             
-            document.getElementById('time-val-dijkstra').textContent = `${data.dijkstra.duration_ms.toFixed(3)} ms`;
-            document.getElementById('time-val-astar').textContent = `${data.astar.duration_ms.toFixed(3)} ms`;
+            document.getElementById('time-val-left').textContent = `${leftData.duration_ms.toFixed(3)} ms`;
+            document.getElementById('time-val-right').textContent = `${rightData.duration_ms.toFixed(3)} ms`;
             
-            // Build the analytical summary
-            const reduction = data.dijkstra.nodes_explored_count - data.astar.nodes_explored_count;
-            const pct = ((reduction / data.dijkstra.nodes_explored_count) * 100).toFixed(1);
+            // Render comparative analysis dynamically based on selection
+            const leftName = leftAlgoSelect.options[leftAlgoSelect.selectedIndex].text.split(' ')[0];
+            const rightName = rightAlgoSelect.options[rightAlgoSelect.selectedIndex].text.split(' ')[0];
+            
+            const nodeDiff = leftData.nodes_explored_count - rightData.nodes_explored_count;
+            
+            // Check if one path is suboptimal
+            const isLeftSuboptimal = leftData.path && rightData.path && (leftData.path.length > rightData.path.length);
+            const isRightSuboptimal = leftData.path && rightData.path && (rightData.path.length > leftData.path.length);
             
             let summaryHTML = '';
             
-            if (!data.astar.path) {
+            if (!leftData.path || !rightData.path) {
                 summaryHTML = `
                     <div class="summary-badge btn-danger" style="background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 8px;">
-                        <strong>Aucun chemin trouvé !</strong> La cible est isolée par des obstacles.
+                        <strong>Chemin non trouvé !</strong> Au moins un des algorithmes n'a pas pu atteindre la cible.
+                    </div>
+                `;
+            } else if (isLeftSuboptimal || isRightSuboptimal) {
+                const subAlgo = isLeftSuboptimal ? leftName : rightName;
+                const optAlgo = isLeftSuboptimal ? rightName : leftName;
+                const subLen = isLeftSuboptimal ? leftData.path.length : rightData.path.length;
+                const optLen = isLeftSuboptimal ? rightData.path.length : leftData.path.length;
+                
+                summaryHTML = `
+                    <div class="summary-badge" style="background: rgba(243, 156, 18, 0.15); border: 1px solid rgba(243, 156, 18, 0.3); color: #f39c12;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> <strong>Sous-optimalité détectée !</strong><br>
+                        Le chemin de <strong>${subAlgo}</strong> est de <strong>${subLen} cases</strong>, alors que <strong>${optAlgo}</strong> a trouvé un chemin plus court de <strong>${optLen} cases</strong>.
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem;">
+                        <strong>Pourquoi ?</strong> DFS (Profondeur) ou A* avec une heuristique inadmissible ne garantissent pas l'optimalité du chemin. Ils s'arrêtent dès qu'ils touchent au but, même si le chemin parcouru est long et tortueux.
+                    </p>
+                `;
+            } else if (nodeDiff !== 0) {
+                const winner = nodeDiff > 0 ? rightName : leftName;
+                const loser = nodeDiff > 0 ? leftName : rightName;
+                const absoluteDiff = Math.abs(nodeDiff);
+                const winData = nodeDiff > 0 ? rightData : leftData;
+                const loseData = nodeDiff > 0 ? leftData : rightData;
+                const pct = ((absoluteDiff / loseData.nodes_explored_count) * 100).toFixed(1);
+                
+                const themeColor = winner.startsWith('A*') ? 'var(--astar-primary)' : (winner.startsWith('DFS') ? 'var(--dfs-primary)' : 'var(--dijkstra-primary)');
+                const themeBackground = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.1)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.1)' : 'rgba(0, 243, 255, 0.1)');
+                const themeBorder = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.2)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.2)' : 'rgba(0, 243, 255, 0.2)');
+                
+                summaryHTML = `
+                    <div class="summary-badge" style="background: ${themeBackground}; border: 1px solid ${themeBorder}; color: ${themeColor};">
+                        <i class="fa-solid fa-trophy"></i> <strong>${winner} est plus efficace !</strong><br>
+                        Il a exploré <strong style="text-shadow: 0 0 5px ${themeColor};">${absoluteDiff} nœuds de moins</strong> que ${loser} (soit une réduction de <strong>${pct}%</strong>).<br><br>
+                        Temps de calcul : <strong>${winData.duration_ms.toFixed(3)} ms</strong> contre <strong>${loseData.duration_ms.toFixed(3)} ms</strong>.
                     </div>
                 `;
             } else {
                 summaryHTML = `
                     <div class="summary-badge summary-badge-success">
-                        <i class="fa-solid fa-circle-check"></i> <strong>Chemin optimal trouvé !</strong><br>
-                        A* a exploré <strong class="highlight-win">${reduction} nœuds de moins</strong> que Dijkstra 
-                        (soit une baisse de <strong class="highlight-win">${pct}%</strong>).<br><br>
-                        Le temps de calcul d'A* est de <strong>${data.astar.duration_ms.toFixed(3)} ms</strong> contre <strong>${data.dijkstra.duration_ms.toFixed(3)} ms</strong> pour Dijkstra.
+                        <i class="fa-solid fa-circle-check"></i> <strong>Équivalence parfaite !</strong><br>
+                        Les deux algorithmes ont exploré exactement le même nombre de nœuds (<strong>${leftData.nodes_explored_count} nœuds</strong>).<br><br>
+                        Calcul à gauche en <strong>${leftData.duration_ms.toFixed(3)} ms</strong> et à droite en <strong>${rightData.duration_ms.toFixed(3)} ms</strong>.
                     </div>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem;">
-                        <strong>Pourquoi ?</strong> Dijkstra explore dans toutes les directions à partir du départ (recherche uniforme). A* utilise la distance de Manhattan pour orienter en priorité ses expansions vers l'arrivée, réduisant radicalement l'espace de recherche.
-                    </p>
                 `;
             }
             
@@ -1046,6 +1243,22 @@
             initGrids();
         });
 
+        heuristicSelect.addEventListener('change', (e) => {
+            resetStats();
+        });
+
+        leftAlgoSelect.addEventListener('change', () => {
+            updateAlgoPanelThemes();
+            resetStats();
+            clearPathColors();
+        });
+
+        rightAlgoSelect.addEventListener('change', () => {
+            updateAlgoPanelThemes();
+            resetStats();
+            clearPathColors();
+        });
+
         btnSetStart.addEventListener('click', () => {
             if (isAnimating) return;
             drawMode = 'start';
@@ -1061,6 +1274,7 @@
         });
 
         btnGenerateMaze.addEventListener('click', generateRandomMaze);
+        btnAStarTrap.addEventListener('click', generateAStarTrap);
         btnClearWalls.addEventListener('click', clearWalls);
         
         btnClearPath.addEventListener('click', () => {

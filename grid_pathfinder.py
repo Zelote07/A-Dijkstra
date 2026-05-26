@@ -83,10 +83,16 @@ def solve_astar(
     cols: int,
     start: Tuple[int, int],
     end: Tuple[int, int],
-    obstacles: Set[Tuple[int, int]]
+    obstacles: Set[Tuple[int, int]],
+    heuristic_type: str = 'manhattan'
 ) -> Tuple[Optional[List[Tuple[int, int]]], List[Tuple[int, int]], float]:
     """
-    Finds the shortest path on a 2D grid using A* algorithm with Manhattan distance heuristic.
+    Finds the shortest path on a 2D grid using A* algorithm with configurable distance heuristics.
+    
+    Heuristics:
+        'manhattan': standard L1 distance (admissible and consistent)
+        'euclidean': standard L2 distance (admissible, less informed)
+        'weighted_manhattan': inadmissible (Manhattan x 3), very fast search but potentially suboptimal path
     
     Returns:
         path: List of (r, c) coordinates forming the path from start to end (or None)
@@ -94,10 +100,18 @@ def solve_astar(
         duration_ms: Precise execution time in milliseconds
     """
     t_start = time.perf_counter()
+    import math
     
-    # Manhattan distance heuristic (admissible and consistent for 4-directional grid routing)
-    def heuristic(node: Tuple[int, int]) -> float:
-        return float(abs(node[0] - end[0]) + abs(node[1] - end[1]))
+    # Configure heuristic function
+    if heuristic_type == 'euclidean':
+        def heuristic(node: Tuple[int, int]) -> float:
+            return float(math.sqrt((node[0] - end[0])**2 + (node[1] - end[1])**2))
+    elif heuristic_type == 'weighted_manhattan':
+        def heuristic(node: Tuple[int, int]) -> float:
+            return 3.0 * float(abs(node[0] - end[0]) + abs(node[1] - end[1]))
+    else:  # Default is 'manhattan'
+        def heuristic(node: Tuple[int, int]) -> float:
+            return float(abs(node[0] - end[0]) + abs(node[1] - end[1]))
         
     start_h = heuristic(start)
     # PQ stores: (f_score, g_score, current_node)
@@ -136,6 +150,63 @@ def solve_astar(
                 
     # Reconstruct path
     if end in g_scores:
+        path = []
+        curr = end
+        while curr is not None:
+            path.append(curr)
+            curr = parents[curr]
+        path.reverse()
+        
+    duration_ms = (time.perf_counter() - t_start) * 1000.0
+    return path, explored_order, duration_ms
+
+def solve_dfs(
+    rows: int,
+    cols: int,
+    start: Tuple[int, int],
+    end: Tuple[int, int],
+    obstacles: Set[Tuple[int, int]]
+) -> Tuple[Optional[List[Tuple[int, int]]], List[Tuple[int, int]], float]:
+    """
+    Finds a path on a 2D grid using Depth First Search (DFS).
+    
+    Returns:
+        path: List of (r, c) coordinates forming a path from start to end (or None)
+        explored: List of (r, c) coordinates in the order they were expanded (for animation)
+        duration_ms: Precise execution time in milliseconds
+    """
+    t_start = time.perf_counter()
+    
+    # Stack stores current node
+    stack: List[Tuple[int, int]] = [start]
+    visited: Set[Tuple[int, int]] = set()
+    parents: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+    explored_order: List[Tuple[int, int]] = []
+    
+    path = None
+    
+    while stack:
+        current = stack.pop()
+        
+        if current == end:
+            visited.add(current)
+            explored_order.append(current)
+            break
+            
+        if current in visited:
+            continue
+            
+        visited.add(current)
+        explored_order.append(current)
+        
+        neighbors = get_neighbors(current, rows, cols, obstacles)
+        for neighbor in neighbors:
+            if neighbor not in visited and neighbor not in parents:
+                parents[neighbor] = current
+                stack.append(neighbor)
+                
+    # Reconstruct path
+    if end in visited:
         path = []
         curr = end
         while curr is not None:
