@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSM Pathfinding Arena: Dijkstra vs A* vs DFS</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Draw -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #08090f;
+            --panel-bg: rgba(18, 20, 32, 0.65);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            
+            --dijkstra-primary: #00f3ff;
+            --dijkstra-secondary: rgba(0, 243, 255, 0.15);
+            
+            --astar-primary: #ec4899;
+            --astar-secondary: rgba(236, 72, 153, 0.15);
+            
+            --dfs-primary: #f1c40f;
+            --dfs-secondary: rgba(241, 196, 15, 0.15);
+            
+            --start-color: #10b981;
+            --end-color: #ef4444;
+            --obstacle-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--dijkstra-primary), var(--astar-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Controls Panel */
+        .controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 0.75rem 1.5rem;
+            border-radius: 16px;
+            margin: 1rem 2rem 0 2rem;
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            padding-right: 1rem;
+        }
+
+        .control-group:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="range"] {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        select option {
+            background-color: #121420;
+            color: var(--text-main);
+        }
+
+        select:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .legend {
+            display: flex;
+            gap: 1rem;
+            margin-left: auto;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Workspace Grid side-by-side */
+        .workspace {
+            display: flex;
+            flex: 1;
+            padding: 1rem 2rem 2rem 2rem;
+            gap: 1.5rem;
+            height: calc(100vh - 160px);
+            min-height: 500px;
+        }
+
+        .maps-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .map-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-height: 0;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+        }
+
+        .map-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dijkstra-theme { color: var(--dijkstra-primary); }
+        .astar-theme { color: var(--astar-primary); }
+        .dfs-theme { color: var(--dfs-primary); }
+
+        .map-wrapper {
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .leaflet-map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+        }
+
+        .stats-badge-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .stats-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stats-badge span {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Sidebar stats dashboard */
+        .dashboard-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .dashboard-section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .comparison-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .comparison-label {
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .comparison-values {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .summary-badge {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            font-weight: 500;
+        }
+        
+        .summary-badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .highlight-win {
+            color: var(--start-color);
+            text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Custom Leaflet Map styling */
+        .leaflet-bar a {
+            background-color: #1a1e29 !important;
+            color: var(--text-main) !important;
+            border-bottom: 1px solid var(--panel-border) !important;
+        }
+        .leaflet-bar a:hover {
+            background-color: #293040 !important;
+        }
+
+        /* Custom Leaflet markers styling */
+        .marker-label {
+            background-color: rgba(0,0,0,0.85);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        /* Leaflet Draw custom styling */
+        .leaflet-draw-toolbar a {
+            background-color: #1a1e29 !important;
+            color: var(--text-main) !important;
+        }
+
+        footer {
+            text-align: center;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--panel-border);
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        /* Scrollbar styles for the sidebar */
+        .dashboard-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .dashboard-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dashboard-panel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        .dashboard-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1><i class="fa-solid fa-earth-europe"></i> OpenStreetMap Pathfinding Arena</h1>
+            <div class="subtitle">Dijkstra vs A* vs DFS sur le réseau routier réel de Chamonix-Mont-Blanc</div>
+        </div>
+    </header>
+
+    <!-- Global Controls -->
+    <div class="controls-container">
+        <div class="control-group">
+            <label for="heuristic-select">Heuristique A* :</label>
+            <select id="heuristic-select">
+                <option value="great_circle" selected>Orthodromique (Haversine)</option>
+                <option value="euclidean">Euclidienne (Mètres)</option>
+                <option value="weighted_manhattan">Pondérée (Manhattan x3, Inadmissible)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <button id="btn-clear-obstacles" class="btn btn-danger"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
+            <button id="btn-clear-paths" class="btn"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
+        </div>
+
+        <div class="control-group">
+            <label for="speed-slider">Vitesse :</label>
+            <input type="range" id="speed-slider" min="10" max="300" value="80" step="10" style="width: 100px;">
+        </div>
+
+        <button id="btn-run" class="btn btn-primary"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
+
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--obstacle-color);"></div>Obstacle (Zone Bloquée)</div>
+        </div>
+    </div>
+
+    <!-- Workspace container -->
+    <div class="workspace">
+        <div class="maps-container">
+            <!-- Left Map Panel -->
+            <div class="map-panel">
+                <div class="map-header">
+                    <div class="map-title">
+                        <i class="fa-solid fa-compass dijkstra-theme" id="left-algo-icon"></i>
+                        <select id="left-algo-select" class="algo-select dijkstra-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
+                            <option value="dijkstra" selected>Dijkstra</option>
+                            <option value="astar">A*</option>
+                            <option value="dfs">DFS (Profondeur)</option>
+                        </select>
+                    </div>
+                    <div class="stats-badge-container">
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-left">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-left">- nœuds</span></div>
+                    </div>
+                </div>
+                <div class="map-wrapper">
+                    <div id="map-left" class="leaflet-map"></div>
+                </div>
+            </div>
+
+            <!-- Right Map Panel -->
+            <div class="map-panel">
+                <div class="map-header">
+                    <div class="map-title">
+                        <i class="fa-solid fa-bullseye astar-theme" id="right-algo-icon"></i>
+                        <select id="right-algo-select" class="algo-select astar-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
+                            <option value="dijkstra">Dijkstra</option>
+                            <option value="astar" selected>A*</option>
+                            <option value="dfs">DFS (Profondeur)</option>
+                        </select>
+                    </div>
+                    <div class="stats-badge-container">
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-right">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-right">- nœuds</span></div>
+                    </div>
+                </div>
+                <div class="map-wrapper">
+                    <div id="map-right" class="leaflet-map"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Dashboard Panel -->
+        <div class="dashboard-panel">
+            <div>
+                <h3 class="dashboard-section-title"><i class="fa-solid fa-chart-simple"></i> Dashboard OSM</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">
+                    <strong>Instructions :</strong><br>
+                    1. Double-cliquez pour placer le <strong>Départ</strong>.<br>
+                    2. Double-cliquez à nouveau pour poser l'<strong>Arrivée</strong>.<br>
+                    3. Utilisez l'outil de dessin à gauche de la carte pour tracer des polygones rouges d'obstacles routiers.<br>
+                    4. Cliquez sur <strong>Lancer</strong> pour démarrer.
+                </p>
+            </div>
+
+            <div class="comparison-card">
+                <h4 style="font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.35rem;">Résultats Algorithmiques</h4>
+                
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-arrows-left-right"></i> Distance de l'itinéraire</div>
+                    <div class="comparison-values">
+                        <span id="path-len-left">-</span> / 
+                        <span id="path-len-right">-</span>
+                    </div>
+                </div>
+
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-eye"></i> Intersections visitées</div>
+                    <div class="comparison-values">
+                        <span id="nodes-count-left">-</span> vs 
+                        <span id="nodes-count-right">-</span>
+                    </div>
+                </div>
+
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-stopwatch"></i> Temps de calcul</div>
+                    <div class="comparison-values">
+                        <span id="time-val-left">- ms</span> vs 
+                        <span id="time-val-right">- ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="dashboard-section-title"><i class="fa-solid fa-lightbulb"></i> Analyse Géographique</h3>
+                <div id="summary-container">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                        Placez des marqueurs et tracez des barrières géographiques sur la carte.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Visualisateur OpenStreetMap Dijkstra vs A* vs DFS &copy; 2026 - Conçu avec Flask & Leaflet.js
+    </footer>
+
+    <script>
+        // --- Shared State ---
+        let startLatLng = [45.9180, 6.8580]; // South-West of Chamonix
+        let endLatLng = [45.9280, 6.8780];   // North-East of Chamonix
+        
+        let startMarkerLeft = null, startMarkerRight = null;
+        let endMarkerLeft = null, endMarkerRight = null;
+        
+        let obstacleLayersLeft = [];
+        let obstacleLayersRight = [];
+        
+        let activePathLayersLeft = [];
+        let activePathLayersRight = [];
+        let activeExploredLayersLeft = [];
+        let activeExploredLayersRight = [];
+        
+        let isAnimating = false;
+        let animationIntervals = [];
+
+        // DOM elements
+        const leftAlgoSelect = document.getElementById('left-algo-select');
+        const rightAlgoSelect = document.getElementById('right-algo-select');
+        const heuristicSelect = document.getElementById('heuristic-select');
+        const btnClearObstacles = document.getElementById('btn-clear-obstacles');
+        const btnClearPaths = document.getElementById('btn-clear-paths');
+        const btnRun = document.getElementById('btn-run');
+        const speedSlider = document.getElementById('speed-slider');
+
+        // Color definitions for map geometries
+        const colors = {
+            dijkstra: { primary: '#00f3ff', secondary: 'rgba(0, 243, 255, 0.15)' },
+            astar: { primary: '#ec4899', secondary: 'rgba(236, 72, 153, 0.15)' },
+            dfs: { primary: '#f1c40f', secondary: 'rgba(241, 196, 15, 0.15)' }
+        };
+
+        // --- Initialize Maps ---
+        // CartoDB Positron Dark tiles look stunningly premium
+        const mapLeft = L.map('map-left', {
+            doubleClickZoom: false
+        }).setView([45.9227, 6.8685], 14);
+        
+        const mapRight = L.map('map-right', {
+            doubleClickZoom: false
+        }).setView([45.9227, 6.8685], 14);
+
+        const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+        L.tileLayer(tileUrl, { attribution }).addTo(mapLeft);
+        L.tileLayer(tileUrl, { attribution }).addTo(mapRight);
+
+        // Synchronize Map Views (Panning / Zooming)
+        let isMoving = false;
+        mapLeft.on('move', () => {
+            if (!isMoving) {
+                isMoving = true;
+                mapRight.setView(mapLeft.getCenter(), mapLeft.getZoom(), { animate: false });
+                isMoving = false;
+            }
+        });
+        mapRight.on('move', () => {
+            if (!isMoving) {
+                isMoving = true;
+                mapLeft.setView(mapRight.getCenter(), mapRight.getZoom(), { animate: false });
+                isMoving = false;
+            }
+        });
+
+        // Initialize Start and End markers
+        updateMarkers();
+
+        // --- Marker double-click listener ---
+        function handleMapDoubleClick(e) {
+            if (isAnimating) return;
+            
+            const latlng = e.latlng;
+            // Snapping: Find which marker is closer to the double-click point and move it
+            const distToStart = Math.pow(latlng.lat - startLatLng[0], 2) + Math.pow(latlng.lng - startLatLng[1], 2);
+            const distToEnd = Math.pow(latlng.lat - endLatLng[0], 2) + Math.pow(latlng.lng - endLatLng[1], 2);
+            
+            if (distToStart < distToEnd) {
+                startLatLng = [latlng.lat, latlng.lng];
+            } else {
+                endLatLng = [latlng.lat, latlng.lng];
+            }
+            
+            updateMarkers();
+            clearPaths();
+            resetStats();
+        }
+
+        mapLeft.on('dblclick', handleMapDoubleClick);
+        mapRight.on('dblclick', handleMapDoubleClick);
+
+        function updateMarkers() {
+            // Remove previous markers
+            if (startMarkerLeft) mapLeft.removeLayer(startMarkerLeft);
+            if (startMarkerRight) mapRight.removeLayer(startMarkerRight);
+            if (endMarkerLeft) mapLeft.removeLayer(endMarkerLeft);
+            if (endMarkerRight) mapRight.removeLayer(endMarkerRight);
+
+            // Left Map Markers
+            startMarkerLeft = L.marker(startLatLng, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'marker-label',
+                    html: '<i class="fa-solid fa-location-dot" style="color:#10b981;"></i> DÉPART',
+                    iconSize: [60, 20],
+                    iconAnchor: [30, 20]
+                })
+            }).addTo(mapLeft);
+
+            endMarkerLeft = L.marker(endLatLng, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'marker-label',
+                    html: '<i class="fa-solid fa-flag" style="color:#ef4444;"></i> ARRIVÉE',
+                    iconSize: [65, 20],
+                    iconAnchor: [32, 20]
+                })
+            }).addTo(mapLeft);
+
+            // Right Map Markers
+            startMarkerRight = L.marker(startLatLng, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'marker-label',
+                    html: '<i class="fa-solid fa-location-dot" style="color:#10b981;"></i> DÉPART',
+                    iconSize: [60, 20],
+                    iconAnchor: [30, 20]
+                })
+            }).addTo(mapRight);
+
+            endMarkerRight = L.marker(endLatLng, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'marker-label',
+                    html: '<i class="fa-solid fa-flag" style="color:#ef4444;"></i> ARRIVÉE',
+                    iconSize: [65, 20],
+                    iconAnchor: [32, 20]
+                })
+            }).addTo(mapRight);
+
+            // Bind Drag Events for Left Start Marker
+            startMarkerLeft.on('drag', (e) => {
+                const latlng = e.target.getLatLng();
+                startLatLng = [latlng.lat, latlng.lng];
+                startMarkerRight.setLatLng(latlng);
+            });
+            startMarkerLeft.on('dragend', () => {
+                clearPaths();
+                resetStats();
+            });
+
+            // Bind Drag Events for Right Start Marker
+            startMarkerRight.on('drag', (e) => {
+                const latlng = e.target.getLatLng();
+                startLatLng = [latlng.lat, latlng.lng];
+                startMarkerLeft.setLatLng(latlng);
+            });
+            startMarkerRight.on('dragend', () => {
+                clearPaths();
+                resetStats();
+            });
+
+            // Bind Drag Events for Left End Marker
+            endMarkerLeft.on('drag', (e) => {
+                const latlng = e.target.getLatLng();
+                endLatLng = [latlng.lat, latlng.lng];
+                endMarkerRight.setLatLng(latlng);
+            });
+            endMarkerLeft.on('dragend', () => {
+                clearPaths();
+                resetStats();
+            });
+
+            // Bind Drag Events for Right End Marker
+            endMarkerRight.on('drag', (e) => {
+                const latlng = e.target.getLatLng();
+                endLatLng = [latlng.lat, latlng.lng];
+                endMarkerLeft.setLatLng(latlng);
+            });
+            endMarkerRight.on('dragend', () => {
+                clearPaths();
+                resetStats();
+            });
+        }
+
+        // --- Leaflet Draw Toolbar (Polygonal Obstacles) ---
+        // We only enable drawing on the left map, but we immediately sync drawn shapes to the right map
+        const drawnItems = new L.FeatureGroup();
+        mapLeft.addLayer(drawnItems);
+
+        const drawControl = new L.Control.Draw({
+            edit: false,
+            draw: {
+                polyline: false,
+                circle: false,
+                circlemarker: false,
+                marker: false,
+                rectangle: true,
+                polygon: {
+                    allowIntersection: false,
+                    shapeOptions: {
+                        color: '#ef4444',
+                        fillColor: '#ef4444',
+                        fillOpacity: 0.35,
+                        weight: 2
+                    }
+                }
+            }
+        });
+        mapLeft.addControl(drawControl);
+
+        // Capture draw events and synchronize
+        mapLeft.on(L.Draw.Event.CREATED, (e) => {
+            if (isAnimating) return;
+            const layer = e.layer;
+            drawnItems.addLayer(layer);
+            obstacleLayersLeft.push(layer);
+            
+            // Replicate on the right map
+            let rightLayer;
+            if (e.layerType === 'rectangle') {
+                rightLayer = L.rectangle(layer.getBounds(), {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.35,
+                    weight: 2
+                }).addTo(mapRight);
+            } else {
+                rightLayer = L.polygon(layer.getLatLngs(), {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.35,
+                    weight: 2
+                }).addTo(mapRight);
+            }
+            obstacleLayersRight.push(rightLayer);
+            
+            clearPaths();
+            resetStats();
+        });
+
+        // --- Clear functions ---
+        function clearObstacles() {
+            if (isAnimating) return;
+            drawnItems.clearLayers();
+            obstacleLayersRight.forEach(layer => mapRight.removeLayer(layer));
+            obstacleLayersLeft = [];
+            obstacleLayersRight = [];
+            clearPaths();
+            resetStats();
+        }
+
+        function clearPaths() {
+            activePathLayersLeft.forEach(layer => mapLeft.removeLayer(layer));
+            activePathLayersRight.forEach(layer => mapRight.removeLayer(layer));
+            activeExploredLayersLeft.forEach(layer => mapLeft.removeLayer(layer));
+            activeExploredLayersRight.forEach(layer => mapRight.removeLayer(layer));
+            
+            activePathLayersLeft = [];
+            activePathLayersRight = [];
+            activeExploredLayersLeft = [];
+            activeExploredLayersRight = [];
+        }
+
+        function stopAnimations() {
+            animationIntervals.forEach(interval => clearInterval(interval));
+            animationIntervals = [];
+            isAnimating = false;
+            btnRun.disabled = false;
+            btnRun.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
+        }
+
+        function resetStats() {
+            document.getElementById('stat-time-left').textContent = '- ms';
+            document.getElementById('stat-nodes-left').textContent = '- nœuds';
+            document.getElementById('stat-time-right').textContent = '- ms';
+            document.getElementById('stat-nodes-right').textContent = '- nœuds';
+            
+            document.getElementById('path-len-left').textContent = '-';
+            document.getElementById('path-len-right').textContent = '-';
+            document.getElementById('nodes-count-left').textContent = '-';
+            document.getElementById('nodes-count-right').textContent = '-';
+            document.getElementById('time-val-left').textContent = '- ms';
+            document.getElementById('time-val-right').textContent = '- ms';
+            
+            document.getElementById('summary-container').innerHTML = `
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                    Placez des marqueurs et tracez des barrières géographiques sur la carte.
+                </p>
+            `;
+        }
+
+        function updateAlgoPanelThemes() {
+            const leftVal = leftAlgoSelect.value;
+            leftAlgoSelect.className = `algo-select ${leftVal}-theme`;
+            const leftIcon = document.getElementById('left-algo-icon');
+            leftIcon.className = leftVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
+                               (leftVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
+            
+            const rightVal = rightAlgoSelect.value;
+            rightAlgoSelect.className = `algo-select ${rightVal}-theme`;
+            const rightIcon = document.getElementById('right-algo-icon');
+            rightIcon.className = rightVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
+                                (rightVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
+        }
+
+        // --- Pathfinding Execution ---
+        async function runOSMComparison() {
+            if (isAnimating) return;
+            
+            stopAnimations();
+            clearPaths();
+            resetStats();
+            
+            isAnimating = true;
+            btnRun.disabled = true;
+            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Résolution...`;
+            
+            // Build the obstacles geometry polygons
+            const obstaclesArray = [];
+            drawnItems.eachLayer((layer) => {
+                let coords = [];
+                const latlngs = layer.getLatLngs()[0]; // Outer ring
+                latlngs.forEach(latlng => {
+                    coords.push([latlng.lat, latlng.lng]);
+                });
+                obstaclesArray.push(coords);
+            });
+            
+            const payload = {
+                start: startLatLng,
+                end: endLatLng,
+                obstacles: obstaclesArray,
+                heuristic: heuristicSelect.value
+            };
+            
+            try {
+                const response = await fetch('/api/solve_osm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "HTTP error on solver API");
+                }
+                
+                const data = await response.json();
+                
+                // Read start/end snapped coordinates and update markers slightly to reflect snapped nodes
+                startLatLng = data.meta.start_node_coords;
+                endLatLng = data.meta.end_node_coords;
+                updateMarkers();
+                
+                animateOSMResults(data);
+                
+            } catch (err) {
+                console.error("OSM Pathfinding error:", err);
+                alert("Erreur: " + err.message);
+                stopAnimations();
+            }
+        }
+
+        function animateOSMResults(data) {
+            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Exploration...`;
+            
+            const speed = parseInt(speedSlider.value);
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
+            
+            const leftData = data[leftAlgo];
+            const rightData = data[rightAlgo];
+            
+            const leftExplored = leftData.explored;
+            const leftPath = leftData.path;
+            
+            const rightExplored = rightData.explored;
+            const rightPath = rightData.path;
+            
+            let lIdx = 0;
+            let rIdx = 0;
+            
+            // Explorations animations. We draw circleMarkers on the maps
+            const timer = setInterval(() => {
+                let active = false;
+                
+                // Animate Left Map Exploration
+                if (lIdx < leftExplored.length) {
+                    const coord = leftExplored[lIdx];
+                    const marker = L.circleMarker(coord, {
+                        radius: 4,
+                        color: colors[leftAlgo].primary,
+                        fillColor: colors[leftAlgo].primary,
+                        fillOpacity: 0.6,
+                        weight: 1
+                    }).addTo(mapLeft);
+                    activeExploredLayersLeft.push(marker);
+                    lIdx++;
+                    active = true;
+                }
+                
+                // Animate Right Map Exploration
+                if (rIdx < rightExplored.length) {
+                    const coord = rightExplored[rIdx];
+                    const marker = L.circleMarker(coord, {
+                        radius: 4,
+                        color: colors[rightAlgo].primary,
+                        fillColor: colors[rightAlgo].primary,
+                        fillOpacity: 0.6,
+                        weight: 1
+                    }).addTo(mapRight);
+                    activeExploredLayersRight.push(marker);
+                    rIdx++;
+                    active = true;
+                }
+                
+                if (!active) {
+                    clearInterval(timer);
+                    // Draw final paths
+                    drawOSMPaths(leftPath, rightPath, data);
+                }
+            }, 1000 / speed);
+            
+            animationIntervals.push(timer);
+        }
+
+        function drawOSMPaths(leftPath, rightPath, data) {
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
+            
+            // Draw Left Path with a solid thick polyline
+            if (leftPath && leftPath.length > 0) {
+                const polyline = L.polyline(leftPath, {
+                    color: colors[leftAlgo].primary,
+                    weight: 6,
+                    opacity: 0.9,
+                    lineJoin: 'round'
+                }).addTo(mapLeft);
+                activePathLayersLeft.push(polyline);
+            }
+            
+            // Draw Right Path
+            if (rightPath && rightPath.length > 0) {
+                const polyline = L.polyline(rightPath, {
+                    color: colors[rightAlgo].primary,
+                    weight: 6,
+                    opacity: 0.9,
+                    lineJoin: 'round'
+                }).addTo(mapRight);
+                activePathLayersRight.push(polyline);
+            }
+            
+            displayOSMFinalStats(data);
+            stopAnimations();
+        }
+
+        function displayOSMFinalStats(data) {
+            const leftAlgo = leftAlgoSelect.value;
+            const rightAlgo = rightAlgoSelect.value;
+            
+            const leftData = data[leftAlgo];
+            const rightData = data[rightAlgo];
+            
+            // Update panel headers badges
+            document.getElementById('stat-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+            document.getElementById('stat-nodes-left').textContent = `${leftData.nodes_explored_count} intersections`;
+            
+            document.getElementById('stat-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+            document.getElementById('stat-nodes-right').textContent = `${rightData.nodes_explored_count} intersections`;
+            
+            // Update sidebar dashboard
+            const lLen = leftData.path ? `${(leftData.path_length_meters / 1000.0).toFixed(3)} km` : 'Aucun';
+            const rLen = rightData.path ? `${(rightData.path_length_meters / 1000.0).toFixed(3)} km` : 'Aucun';
+            
+            document.getElementById('path-len-left').textContent = lLen;
+            document.getElementById('path-len-right').textContent = rLen;
+            
+            document.getElementById('nodes-count-left').textContent = leftData.nodes_explored_count;
+            document.getElementById('nodes-count-right').textContent = rightData.nodes_explored_count;
+            
+            document.getElementById('time-val-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+            document.getElementById('time-val-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+            
+            // Dynamic text summary
+            const leftName = leftAlgoSelect.options[leftAlgoSelect.selectedIndex].text.split(' ')[0];
+            const rightName = rightAlgoSelect.options[rightAlgoSelect.selectedIndex].text.split(' ')[0];
+            
+            const nodeDiff = leftData.nodes_explored_count - rightData.nodes_explored_count;
+            const isLeftSuboptimal = leftData.path && rightData.path && (leftData.path_length_meters > rightData.path_length_meters + 1.0);
+            const isRightSuboptimal = leftData.path && rightData.path && (rightData.path_length_meters > leftData.path_length_meters + 1.0);
+            
+            let summaryHTML = '';
+            
+            if (!leftData.path || !rightData.path) {
+                summaryHTML = `
+                    <div class="summary-badge btn-danger" style="background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 8px;">
+                        <strong>Itinéraire bloqué !</strong> Au moins un des algorithmes n'a pas pu trouver de chemin d'accès suite aux obstacles tracés.
+                    </div>
+                `;
+            } else if (isLeftSuboptimal || isRightSuboptimal) {
+                const subAlgo = isLeftSuboptimal ? leftName : rightName;
+                const optAlgo = isLeftSuboptimal ? rightName : leftName;
+                const subLen = isLeftSuboptimal ? leftData.path_length_meters : rightData.path_length_meters;
+                const optLen = isLeftSuboptimal ? rightData.path_length_meters : leftData.path_length_meters;
+                
+                summaryHTML = `
+                    <div class="summary-badge" style="background: rgba(243, 156, 18, 0.15); border: 1px solid rgba(243, 156, 18, 0.3); color: #f39c12;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> <strong>Itinéraire sous-optimal !</strong><br>
+                        <strong>${subAlgo}</strong> a tracé une route de <strong>${(subLen/1000.0).toFixed(3)} km</strong>, tandis que <strong>${optAlgo}</strong> a trouvé une route plus courte de <strong>${(optLen/1000.0).toFixed(3)} km</strong>.
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem;">
+                        <strong>Analyse :</strong> Sur un réseau routier réel, DFS ou A* avec une heuristique surestimant fortement la distance (Manhattan Pondérée) trouvent un itinéraire extrêmement vite en termes de nœuds, mais au prix de détours importants.
+                    </p>
+                `;
+            } else if (nodeDiff !== 0) {
+                const winner = nodeDiff > 0 ? rightName : leftName;
+                const loser = nodeDiff > 0 ? leftName : rightName;
+                const absoluteDiff = Math.abs(nodeDiff);
+                const winData = nodeDiff > 0 ? rightData : leftData;
+                const loseData = nodeDiff > 0 ? leftData : rightData;
+                const pct = ((absoluteDiff / loseData.nodes_explored_count) * 100).toFixed(1);
+                
+                const themeColor = winner.startsWith('A*') ? 'var(--astar-primary)' : (winner.startsWith('DFS') ? 'var(--dfs-primary)' : 'var(--dijkstra-primary)');
+                const themeBackground = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.1)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.1)' : 'rgba(0, 243, 255, 0.1)');
+                const themeBorder = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.2)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.2)' : 'rgba(0, 243, 255, 0.2)');
+                
+                summaryHTML = `
+                    <div class="summary-badge" style="background: ${themeBackground}; border: 1px solid ${themeBorder}; color: ${themeColor};">
+                        <i class="fa-solid fa-circle-check"></i> <strong>${winner} est vainqueur !</strong><br>
+                        Il a exploré <strong>${absoluteDiff} intersections de moins</strong> que ${loser} (soit <strong>${pct}%</strong> d'intersections préservées).<br><br>
+                        Calcul en <strong>${winData.duration_ms.toFixed(2)} ms</strong> contre <strong>${loseData.duration_ms.toFixed(2)} ms</strong>.
+                    </div>
+                `;
+            } else {
+                summaryHTML = `
+                    <div class="summary-badge summary-badge-success">
+                        <i class="fa-solid fa-circle-check"></i> <strong>Exploration identique !</strong><br>
+                        Les deux algorithmes ont visité le même nombre d'intersections (<strong>${leftData.nodes_explored_count}</strong>).
+                    </div>
+                `;
+            }
+            
+            document.getElementById('summary-container').innerHTML = summaryHTML;
+        }
+
+        // --- Event Listeners ---
+        leftAlgoSelect.addEventListener('change', () => {
+            updateAlgoPanelThemes();
+            clearPaths();
+            resetStats();
+        });
+
+        rightAlgoSelect.addEventListener('change', () => {
+            updateAlgoPanelThemes();
+            clearPaths();
+            resetStats();
+        });
+
+        heuristicSelect.addEventListener('change', () => {
+            clearPaths();
+            resetStats();
+        });
+
+        btnClearObstacles.addEventListener('click', clearObstacles);
+        btnClearPaths.addEventListener('click', () => {
+            stopAnimations();
+            clearPaths();
+            resetStats();
+        });
+
+        btnRun.addEventListener('click', runOSMComparison);
+
+        updateAlgoPanelThemes();
+
+        // Force Leaflet to recalculate container size on load and resize
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                mapLeft.invalidateSize();
+                mapRight.invalidateSize();
+            }, 100);
+        });
+
+        window.addEventListener('resize', () => {
+            mapLeft.invalidateSize();
+            mapRight.invalidateSize();
+        });
+    </script>
+</body>
+</html>
