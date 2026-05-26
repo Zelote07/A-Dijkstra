@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinding Visualizer: Dijkstra vs A*</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #08090f;
+            --panel-bg: rgba(18, 20, 32, 0.65);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            
+            --dijkstra-primary: #00f3ff;
+            --dijkstra-secondary: rgba(0, 243, 255, 0.15);
+            --dijkstra-visited: rgba(0, 243, 255, 0.35);
+            --dijkstra-visited-new: rgba(0, 168, 255, 0.7);
+            
+            --astar-primary: #ec4899;
+            --astar-secondary: rgba(236, 72, 153, 0.15);
+            --astar-visited: rgba(236, 72, 153, 0.35);
+            --astar-visited-new: rgba(192, 38, 211, 0.7);
+            
+            --start-color: #10b981;
+            --end-color: #ef4444;
+            --obstacle-color: #1e293b;
+            --empty-color: rgba(30, 41, 59, 0.15);
+            --grid-line: rgba(255, 255, 255, 0.04);
+            
+            --glow-shadow: 0 0 15px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--dijkstra-primary), var(--astar-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 1rem;
+            border-radius: 16px;
+            margin: 1.5rem 2rem 0 2rem;
+            backdrop-filter: blur(12px);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            padding-right: 1rem;
+        }
+
+        .control-group:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="range"] {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        select:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-start-select { border-color: var(--start-color); color: var(--start-color); }
+        .btn-start-select.active { background: var(--start-color); color: #000; }
+        
+        .btn-end-select { border-color: var(--end-color); color: var(--end-color); }
+        .btn-end-select.active { background: var(--end-color); color: #000; }
+
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Tooltip Legend */
+        .legend {
+            display: flex;
+            gap: 1rem;
+            margin-left: auto;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Dashboard Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+            padding: 1.5rem 2rem 2rem 2rem;
+            gap: 2rem;
+        }
+
+        .grids-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            flex: 1;
+        }
+
+        .grid-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .grid-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.75rem;
+        }
+
+        .grid-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dijkstra-theme { color: var(--dijkstra-primary); }
+        .astar-theme { color: var(--astar-primary); }
+
+        .grid-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .grid {
+            display: grid;
+            gap: 1px;
+            background-color: var(--grid-line);
+            user-select: none;
+        }
+
+        /* Cell Styling */
+        .cell {
+            aspect-ratio: 1;
+            background-color: var(--empty-color);
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            cursor: pointer;
+            border-radius: 1px;
+        }
+
+        .cell:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .cell.start {
+            background-color: var(--start-color) !important;
+            box-shadow: 0 0 10px var(--start-color);
+            animation: nodePulse 0.5s ease-out;
+        }
+
+        .cell.end {
+            background-color: var(--end-color) !important;
+            box-shadow: 0 0 10px var(--end-color);
+            animation: nodePulse 0.5s ease-out;
+        }
+
+        .cell.obstacle {
+            background-color: var(--obstacle-color) !important;
+            animation: wallCreate 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Dijkstra Visited & Path */
+        .cell.visited-dijkstra {
+            animation: visitedDijkstra 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .cell.path-dijkstra {
+            animation: pathDijkstra 0.5s ease-in-out forwards;
+            box-shadow: 0 0 8px var(--dijkstra-primary);
+        }
+
+        /* A* Visited & Path */
+        .cell.visited-astar {
+            animation: visitedAstar 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .cell.path-astar {
+            animation: pathAstar 0.5s ease-in-out forwards;
+            box-shadow: 0 0 8px var(--astar-primary);
+        }
+
+        /* Panel stats in grids */
+        .stats-badge-container {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .stats-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .stats-badge span {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Sidebar stats dashboard */
+        .dashboard-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .dashboard-section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .comparison-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .comparison-label {
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .comparison-values {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .summary-badge {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            font-weight: 500;
+        }
+        
+        .summary-badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        /* Keyframes */
+        @keyframes nodePulse {
+            0% { transform: scale(0.6); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1.0); }
+        }
+
+        @keyframes wallCreate {
+            0% { transform: scale(0.5); background-color: var(--empty-color); }
+            100% { transform: scale(1.0); background-color: var(--obstacle-color); }
+        }
+
+        @keyframes visitedDijkstra {
+            0% {
+                transform: scale(0.3);
+                background-color: var(--dijkstra-secondary);
+                border-radius: 100%;
+            }
+            50% {
+                background-color: var(--dijkstra-visited-new);
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--dijkstra-visited);
+                border-radius: 1px;
+            }
+        }
+
+        @keyframes pathDijkstra {
+            0% {
+                transform: scale(0.6);
+                background-color: #0084ff;
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--dijkstra-primary);
+            }
+        }
+
+        @keyframes visitedAstar {
+            0% {
+                transform: scale(0.3);
+                background-color: var(--astar-secondary);
+                border-radius: 100%;
+            }
+            50% {
+                background-color: var(--astar-visited-new);
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--astar-visited);
+                border-radius: 1px;
+            }
+        }
+
+        @keyframes pathAstar {
+            0% {
+                transform: scale(0.6);
+                background-color: #c026d3;
+            }
+            100% {
+                transform: scale(1.0);
+                background-color: var(--astar-primary);
+            }
+        }
+
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--panel-border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .highlight-win {
+            color: var(--start-color);
+            text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1><i class="fa-solid fa-route"></i> Pathfinding Arena</h1>
+            <div class="subtitle">Dijkstra vs A* (Manhattan) : Comparaison de Performance en Temps Réel</div>
+        </div>
+    </header>
+
+    <!-- Global Controls -->
+    <div class="controls-container">
+        <div class="control-group">
+            <label for="grid-size">Taille :</label>
+            <select id="grid-size">
+                <option value="15">15 x 15</option>
+                <option value="20" selected>20 x 20</option>
+                <option value="25">25 x 25</option>
+                <option value="30">30 x 30</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <button id="btn-set-start" class="btn btn-start-select"><i class="fa-solid fa-location-dot"></i> Placer Départ</button>
+            <button id="btn-set-end" class="btn btn-end-select"><i class="fa-solid fa-flag"></i> Placer Arrivée</button>
+        </div>
+
+        <div class="control-group">
+            <button id="btn-generate-maze" class="btn"><i class="fa-solid fa-shuffle"></i> Labyrinthe Aléatoire</button>
+            <button id="btn-clear-walls" class="btn"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
+            <button id="btn-clear-path" class="btn"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
+        </div>
+
+        <div class="control-group">
+            <label for="speed-slider">Vitesse :</label>
+            <input type="range" id="speed-slider" min="5" max="150" value="40" step="5" style="width: 100px;">
+        </div>
+
+        <button id="btn-run" class="btn btn-primary"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--obstacle-color);"></div>Obstacle</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra</div>
+            <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A*</div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+        <!-- Grids Panels -->
+        <div class="grids-container">
+            <!-- Dijkstra Grid Panel -->
+            <div class="grid-panel">
+                <div class="grid-header">
+                    <div class="grid-title"><i class="fa-solid fa-compass dijkstra-theme"></i> Dijkstra</div>
+                    <div class="stats-badge-container">
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-dijkstra">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-dijkstra">- nœuds</span></div>
+                    </div>
+                </div>
+                <div class="grid-wrapper">
+                    <div id="grid-dijkstra" class="grid"></div>
+                </div>
+            </div>
+
+            <!-- A* Grid Panel -->
+            <div class="grid-panel">
+                <div class="grid-header">
+                    <div class="grid-title"><i class="fa-solid fa-bullseye astar-theme"></i> A* (Manhattan)</div>
+                    <div class="stats-badge-container">
+                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-astar">- ms</span></div>
+                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-astar">- nœuds</span></div>
+                    </div>
+                </div>
+                <div class="grid-wrapper">
+                    <div id="grid-astar" class="grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Dashboard -->
+        <div class="dashboard-panel">
+            <div>
+                <h3 class="dashboard-section-title"><i class="fa-solid fa-chart-simple"></i> Dashboard</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">
+                    Les calculs sont effectués en Python sur le serveur. L'animation montre l'ordre exact d'exploration des nœuds.
+                </p>
+            </div>
+
+            <div class="comparison-card">
+                <h4 style="font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.35rem;">Résultats Algorithmiques</h4>
+                
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-arrows-left-right"></i> Longueur du chemin</div>
+                    <div class="comparison-values">
+                        <span class="dijkstra-theme" id="path-len-dijkstra">-</span> / 
+                        <span class="astar-theme" id="path-len-astar">-</span>
+                    </div>
+                </div>
+
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-eye"></i> Nœuds visités</div>
+                    <div class="comparison-values">
+                        <span class="dijkstra-theme" id="nodes-count-dijkstra">-</span> vs 
+                        <span class="astar-theme" id="nodes-count-astar">-</span>
+                    </div>
+                </div>
+
+                <div class="comparison-row">
+                    <div class="comparison-label"><i class="fa-solid fa-stopwatch"></i> Temps de calcul</div>
+                    <div class="comparison-values">
+                        <span class="dijkstra-theme" id="time-val-dijkstra">- ms</span> vs 
+                        <span class="astar-theme" id="time-val-astar">- ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="dashboard-section-title"><i class="fa-solid fa-lightbulb"></i> Analyse A*</h3>
+                <div id="summary-container">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                        Dessinez des obstacles sur la grille, puis cliquez sur <strong>Lancer la Comparaison</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Visualisateur Dijkstra vs A* &copy; 2026 - Conçu avec Flask & Vanilla CSS
+    </footer>
+
+    <script>
+        // --- Shared Application State ---
+        let rows = 20;
+        let cols = 20;
+        
+        let startPos = [4, 4];
+        let endPos = [15, 15];
+        let obstacles = new Set(); // Stores string "r,c"
+        
+        let isMouseDown = false;
+        let drawMode = 'obstacle'; // 'obstacle', 'erase', 'start', 'end'
+        
+        let isAnimating = false;
+        let animationIntervals = [];
+
+        // DOM elements
+        const gridSizeSelect = document.getElementById('grid-size');
+        const btnSetStart = document.getElementById('btn-set-start');
+        const btnSetEnd = document.getElementById('btn-set-end');
+        const btnGenerateMaze = document.getElementById('btn-generate-maze');
+        const btnClearWalls = document.getElementById('btn-clear-walls');
+        const btnClearPath = document.getElementById('btn-clear-path');
+        const btnRun = document.getElementById('btn-run');
+        const speedSlider = document.getElementById('speed-slider');
+        
+        const gridDijkstra = document.getElementById('grid-dijkstra');
+        const gridAstar = document.getElementById('grid-astar');
+
+        // --- Grid Generation ---
+        function initGrids() {
+            stopAnimations();
+            clearPathColors();
+            
+            // Validate start and end positions
+            if (startPos[0] >= rows || startPos[1] >= cols) {
+                startPos = [0, 0];
+            }
+            if (endPos[0] >= rows || endPos[1] >= cols) {
+                endPos = [rows - 1, cols - 1];
+            }
+            
+            setupGridElement(gridDijkstra, 'dijkstra');
+            setupGridElement(gridAstar, 'astar');
+            
+            resetStats();
+        }
+
+        function setupGridElement(gridEl, type) {
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            
+            // Cell size is calculated dynamically to keep it square and fit perfectly
+            const cellWidth = Math.min(32, Math.floor(580 / Math.max(rows, cols)));
+            gridEl.style.width = `${cellWidth * cols}px`;
+            gridEl.style.height = `${cellWidth * rows}px`;
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.dataset.gridType = type;
+                    
+                    updateCellVisuals(cell, r, c);
+                    
+                    // Event listeners for interactive drawing
+                    cell.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        if (isAnimating) return;
+                        isMouseDown = true;
+                        handleCellInteraction(r, c);
+                    });
+                    
+                    cell.addEventListener('mouseenter', () => {
+                        if (isMouseDown && !isAnimating) {
+                            handleCellInteraction(r, c);
+                        }
+                    });
+                    
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellInteraction(r, c) {
+            const key = `${r},${c}`;
+            
+            if (drawMode === 'start') {
+                if (endPos[0] === r && endPos[1] === c) return; // Cannot overwrite end
+                startPos = [r, c];
+                obstacles.delete(key);
+                btnSetStart.classList.remove('active');
+                drawMode = 'obstacle';
+                syncAllCells();
+            } else if (drawMode === 'end') {
+                if (startPos[0] === r && startPos[1] === c) return; // Cannot overwrite start
+                endPos = [r, c];
+                obstacles.delete(key);
+                btnSetEnd.classList.remove('active');
+                drawMode = 'obstacle';
+                syncAllCells();
+            } else {
+                // Drawing obstacles or erasing
+                if ((startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c)) {
+                    return; // Can't draw walls on start or end
+                }
+                
+                // Set erase mode if clicking an existing wall
+                if (obstacles.has(key)) {
+                    obstacles.delete(key);
+                } else {
+                    obstacles.add(key);
+                }
+                syncCellAt(r, c);
+            }
+        }
+
+        function syncCellAt(r, c) {
+            const cells = document.querySelectorAll(`.cell[data-row="${r}"][data-col="${c}"]`);
+            cells.forEach(cell => {
+                updateCellVisuals(cell, r, c);
+            });
+        }
+
+        function syncAllCells() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    syncCellAt(r, c);
+                }
+            }
+        }
+
+        function updateCellVisuals(cell, r, c) {
+            const key = `${r},${c}`;
+            cell.className = 'cell';
+            
+            if (startPos[0] === r && startPos[1] === c) {
+                cell.classList.add('start');
+            } else if (endPos[0] === r && endPos[1] === c) {
+                cell.classList.add('end');
+            } else if (obstacles.has(key)) {
+                cell.classList.add('obstacle');
+            }
+        }
+
+        // --- Maze Generation ---
+        function generateRandomMaze() {
+            if (isAnimating) return;
+            stopAnimations();
+            clearPathColors();
+            obstacles.clear();
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    // Avoid start and end nodes
+                    if ((startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c)) {
+                        continue;
+                    }
+                    
+                    // 28% chance of putting a wall
+                    if (Math.random() < 0.28) {
+                        obstacles.add(`${r},${c}`);
+                    }
+                }
+            }
+            syncAllCells();
+            resetStats();
+        }
+
+        // --- Clearing operations ---
+        function clearWalls() {
+            if (isAnimating) return;
+            stopAnimations();
+            clearPathColors();
+            obstacles.clear();
+            syncAllCells();
+            resetStats();
+        }
+
+        function clearPathColors() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.classList.remove('visited-dijkstra', 'path-dijkstra', 'visited-astar', 'path-astar');
+            });
+        }
+
+        function stopAnimations() {
+            animationIntervals.forEach(interval => clearInterval(interval));
+            animationIntervals = [];
+            isAnimating = false;
+            btnRun.disabled = false;
+            btnRun.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
+        }
+
+        function resetStats() {
+            document.getElementById('stat-time-dijkstra').textContent = '- ms';
+            document.getElementById('stat-nodes-dijkstra').textContent = '- nœuds';
+            document.getElementById('stat-time-astar').textContent = '- ms';
+            document.getElementById('stat-nodes-astar').textContent = '- nœuds';
+            
+            document.getElementById('path-len-dijkstra').textContent = '-';
+            document.getElementById('path-len-astar').textContent = '-';
+            document.getElementById('nodes-count-dijkstra').textContent = '-';
+            document.getElementById('nodes-count-astar').textContent = '-';
+            document.getElementById('time-val-dijkstra').textContent = '- ms';
+            document.getElementById('time-val-astar').textContent = '- ms';
+            
+            document.getElementById('summary-container').innerHTML = `
+                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                    Configurez la grille et cliquez sur <strong>Lancer la Comparaison</strong>.
+                </p>
+            `;
+        }
+
+        // --- Pathfinding & Animations ---
+        async function runComparison() {
+            if (isAnimating) return;
+            
+            stopAnimations();
+            clearPathColors();
+            resetStats();
+            
+            isAnimating = true;
+            btnRun.disabled = true;
+            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Calcul en cours...`;
+            
+            // Build the payload
+            const obstaclesArray = [];
+            obstacles.forEach(key => {
+                const [r, c] = key.split(',').map(Number);
+                obstaclesArray.push([r, c]);
+            });
+            
+            const payload = {
+                rows: rows,
+                cols: cols,
+                start: startPos,
+                end: endPos,
+                obstacles: obstaclesArray,
+                algorithm: 'both'
+            };
+            
+            try {
+                const response = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error("HTTP error on solver API");
+                }
+                
+                const data = await response.json();
+                animateResults(data);
+                
+            } catch (err) {
+                console.error("Pathfinding error:", err);
+                alert("Une erreur s'est produite lors de l'appel au solveur Python.");
+                stopAnimations();
+            }
+        }
+
+        function animateResults(data) {
+            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Animation en cours...`;
+            
+            const speed = parseInt(speedSlider.value);
+            
+            // Extract solutions
+            const dijkstraExplored = data.dijkstra.explored;
+            const dijkstraPath = data.dijkstra.path;
+            
+            const astarExplored = data.astar.explored;
+            const astarPath = data.astar.path;
+            
+            let dIdx = 0;
+            let aIdx = 0;
+            
+            const maxSteps = Math.max(dijkstraExplored.length, astarExplored.length);
+            
+            const timer = setInterval(() => {
+                let active = false;
+                
+                // Animate Dijkstra step
+                if (dIdx < dijkstraExplored.length) {
+                    const [r, c] = dijkstraExplored[dIdx];
+                    // Skip if start or end
+                    if (!isStartOrEnd(r, c)) {
+                        const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
+                        if (cell) cell.classList.add('visited-dijkstra');
+                    }
+                    dIdx++;
+                    active = true;
+                }
+                
+                // Animate A* step
+                if (aIdx < astarExplored.length) {
+                    const [r, c] = astarExplored[aIdx];
+                    if (!isStartOrEnd(r, c)) {
+                        const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
+                        if (cell) cell.classList.add('visited-astar');
+                    }
+                    aIdx++;
+                    active = true;
+                }
+                
+                // Check if expansion animation finished
+                if (!active) {
+                    clearInterval(timer);
+                    // Draw paths
+                    drawPaths(dijkstraPath, astarPath, data);
+                }
+            }, 1000 / speed);
+            
+            animationIntervals.push(timer);
+        }
+
+        function drawPaths(dijkstraPath, astarPath, data) {
+            let pathSpeed = Math.max(5, Math.floor(100 / parseInt(speedSlider.value)));
+            
+            let dIdx = 0;
+            let aIdx = 0;
+            
+            const drawTimer = setInterval(() => {
+                let active = false;
+                
+                if (dijkstraPath && dIdx < dijkstraPath.length) {
+                    const [r, c] = dijkstraPath[dIdx];
+                    if (!isStartOrEnd(r, c)) {
+                        const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
+                        if (cell) cell.classList.add('path-dijkstra');
+                    }
+                    dIdx++;
+                    active = true;
+                }
+                
+                if (astarPath && aIdx < astarPath.length) {
+                    const [r, c] = astarPath[aIdx];
+                    if (!isStartOrEnd(r, c)) {
+                        const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
+                        if (cell) cell.classList.add('path-astar');
+                    }
+                    aIdx++;
+                    active = true;
+                }
+                
+                if (!active) {
+                    clearInterval(drawTimer);
+                    // Finalize stats displays
+                    displayFinalStats(data);
+                    stopAnimations();
+                }
+            }, pathSpeed * 20);
+            
+            animationIntervals.push(drawTimer);
+        }
+
+        function isStartOrEnd(r, c) {
+            return (startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c);
+        }
+
+        function displayFinalStats(data) {
+            // Update panel headers badges
+            document.getElementById('stat-time-dijkstra').textContent = `${data.dijkstra.duration_ms.toFixed(3)} ms`;
+            document.getElementById('stat-nodes-dijkstra').textContent = `${data.dijkstra.nodes_explored_count} nœuds`;
+            
+            document.getElementById('stat-time-astar').textContent = `${data.astar.duration_ms.toFixed(3)} ms`;
+            document.getElementById('stat-nodes-astar').textContent = `${data.astar.nodes_explored_count} nœuds`;
+            
+            // Update sidebar dashboard
+            const dLen = data.dijkstra.path ? data.dijkstra.path.length : 'Aucun';
+            const aLen = data.astar.path ? data.astar.path.length : 'Aucun';
+            
+            document.getElementById('path-len-dijkstra').textContent = dLen;
+            document.getElementById('path-len-astar').textContent = aLen;
+            
+            document.getElementById('nodes-count-dijkstra').textContent = data.dijkstra.nodes_explored_count;
+            document.getElementById('nodes-count-astar').textContent = data.astar.nodes_explored_count;
+            
+            document.getElementById('time-val-dijkstra').textContent = `${data.dijkstra.duration_ms.toFixed(3)} ms`;
+            document.getElementById('time-val-astar').textContent = `${data.astar.duration_ms.toFixed(3)} ms`;
+            
+            // Build the analytical summary
+            const reduction = data.dijkstra.nodes_explored_count - data.astar.nodes_explored_count;
+            const pct = ((reduction / data.dijkstra.nodes_explored_count) * 100).toFixed(1);
+            
+            let summaryHTML = '';
+            
+            if (!data.astar.path) {
+                summaryHTML = `
+                    <div class="summary-badge btn-danger" style="background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 8px;">
+                        <strong>Aucun chemin trouvé !</strong> La cible est isolée par des obstacles.
+                    </div>
+                `;
+            } else {
+                summaryHTML = `
+                    <div class="summary-badge summary-badge-success">
+                        <i class="fa-solid fa-circle-check"></i> <strong>Chemin optimal trouvé !</strong><br>
+                        A* a exploré <strong class="highlight-win">${reduction} nœuds de moins</strong> que Dijkstra 
+                        (soit une baisse de <strong class="highlight-win">${pct}%</strong>).<br><br>
+                        Le temps de calcul d'A* est de <strong>${data.astar.duration_ms.toFixed(3)} ms</strong> contre <strong>${data.dijkstra.duration_ms.toFixed(3)} ms</strong> pour Dijkstra.
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem;">
+                        <strong>Pourquoi ?</strong> Dijkstra explore dans toutes les directions à partir du départ (recherche uniforme). A* utilise la distance de Manhattan pour orienter en priorité ses expansions vers l'arrivée, réduisant radicalement l'espace de recherche.
+                    </p>
+                `;
+            }
+            
+            document.getElementById('summary-container').innerHTML = summaryHTML;
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        gridSizeSelect.addEventListener('change', (e) => {
+            rows = parseInt(e.target.value);
+            cols = parseInt(e.target.value);
+            initGrids();
+        });
+
+        btnSetStart.addEventListener('click', () => {
+            if (isAnimating) return;
+            drawMode = 'start';
+            btnSetStart.classList.add('active');
+            btnSetEnd.classList.remove('active');
+        });
+
+        btnSetEnd.addEventListener('click', () => {
+            if (isAnimating) return;
+            drawMode = 'end';
+            btnSetEnd.classList.add('active');
+            btnSetStart.classList.remove('active');
+        });
+
+        btnGenerateMaze.addEventListener('click', generateRandomMaze);
+        btnClearWalls.addEventListener('click', clearWalls);
+        
+        btnClearPath.addEventListener('click', () => {
+            if (isAnimating) return;
+            stopAnimations();
+            clearPathColors();
+            resetStats();
+        });
+
+        btnRun.addEventListener('click', runComparison);
+
+        // Prevent dragging page images/elements
+        window.addEventListener('dragstart', (e) => e.preventDefault());
+
+        // Initialize on load
+        initGrids();
+    </script>
+</body>
+</html>
