@@ -3,18 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pathfinding Visualizer: Dijkstra vs A*</title>
+    <title>Plateforme de Routage Stochastique & Monte Carlo</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <!-- Leaflet.js (Cartographie) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Draw (Dessin d'obstacles) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <!-- Chart.js (Graphiques Monte Carlo) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             --bg-color: #08090f;
-            --panel-bg: rgba(18, 20, 32, 0.65);
+            --panel-bg: rgba(18, 20, 32, 0.75);
             --panel-border: rgba(255, 255, 255, 0.08);
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
@@ -28,6 +36,9 @@
             --astar-secondary: rgba(236, 72, 153, 0.15);
             --astar-visited: rgba(236, 72, 153, 0.35);
             --astar-visited-new: rgba(192, 38, 211, 0.7);
+            
+            --static-primary: #3b82f6;
+            --static-secondary: rgba(59, 130, 246, 0.15);
             
             --dfs-primary: #f1c40f;
             --dfs-secondary: rgba(241, 196, 15, 0.15);
@@ -60,20 +71,21 @@
         }
 
         header {
-            background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
-            padding: 1.5rem 2rem;
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            padding: 1.25rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--panel-border);
             backdrop-filter: blur(10px);
+            z-index: 1000;
         }
 
         header h1 {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            background: linear-gradient(90deg, var(--dijkstra-primary), var(--astar-primary));
+            background: linear-gradient(90deg, var(--dijkstra-primary), var(--static-primary), var(--astar-primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -82,67 +94,25 @@
         }
 
         .subtitle {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 0.25rem;
-        }
-
-        .controls-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            padding: 1rem;
-            border-radius: 16px;
-            margin: 1.5rem 2rem 0 2rem;
-            backdrop-filter: blur(12px);
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
-            padding-right: 1rem;
-        }
-
-        .control-group:last-child {
-            border-right: none;
-            padding-right: 0;
-        }
-
-        label {
             font-size: 0.8rem;
-            font-weight: 600;
             color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
         }
 
-        select, input[type="range"] {
-            background: rgba(30, 41, 59, 0.5);
+        /* Navigation par onglets */
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--panel-border);
-            color: var(--text-main);
-            padding: 0.4rem 0.8rem;
-            border-radius: 8px;
-            outline: none;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 500;
-            transition: all 0.2s ease;
+            padding: 0.35rem;
+            border-radius: 12px;
         }
 
-        select:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(30, 41, 59, 0.7);
-        }
-
-        .btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
             padding: 0.5rem 1rem;
             border-radius: 8px;
             cursor: pointer;
@@ -151,12 +121,157 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Contenu des onglets */
+        .tab-content {
+            display: none;
+            flex: 1;
+            padding: 1.5rem 2rem;
+            gap: 1.5rem;
+            min-height: 0;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Grille globale à deux colonnes */
+        .simulation-container {
+            display: flex;
+            flex: 1;
+            gap: 1.5rem;
+            width: 100%;
+            min-height: 0;
+        }
+
+        /* Panneau de contrôle latéral */
+        .sidebar {
+            width: 330px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            overflow-y: auto;
+            max-height: calc(100vh - 130px);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+
+        /* Espace de travail principal */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-height: 0;
+        }
+
+        /* Titres de sections */
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: var(--static-primary);
+        }
+
+        /* Formulaires */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="number"], input[type="range"] {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        select:hover, input[type="number"]:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        select option {
+            background-color: #121420;
+            color: var(--text-main);
+        }
+
+        /* Boutons */
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background: rgba(255, 255, 255, 0.15);
             transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-primary {
@@ -165,9 +280,17 @@
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: linear-gradient(90deg, #2563eb, #7c3aed);
             box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.15);
         }
 
         .btn-start-select { border-color: var(--start-color); color: var(--start-color); }
@@ -176,93 +299,147 @@
         .btn-end-select { border-color: var(--end-color); color: var(--end-color); }
         .btn-end-select.active { background: var(--end-color); color: #000; }
 
-        .btn-danger {
-            border-color: rgba(239, 68, 68, 0.4);
-            color: #ef4444;
-        }
-        .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        /* Tooltip Legend */
+        /* Légende */
         .legend {
             display: flex;
-            gap: 1rem;
-            margin-left: auto;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 10px;
+            padding: 0.75rem;
         }
 
         .legend-item {
             display: flex;
             align-items: center;
             gap: 0.4rem;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 500;
             color: var(--text-muted);
         }
 
         .legend-color {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 3px;
         }
 
-        /* Dashboard Layout */
-        .workspace {
-            display: flex;
-            flex: 1;
-            padding: 1.5rem 2rem 2rem 2rem;
-            gap: 2rem;
-        }
-
-        .grids-container {
+        /* Cartes côte à côte (Arène OSM) */
+        .maps-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            gap: 1.5rem;
             flex: 1;
+            min-height: 0;
         }
 
-        .grid-panel {
+        .map-panel {
             background: var(--panel-bg);
             border: 1px solid var(--panel-border);
             border-radius: 20px;
-            padding: 1.5rem;
+            padding: 1rem;
             display: flex;
             flex-direction: column;
-            align-items: center;
             backdrop-filter: blur(12px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            position: relative;
+            min-height: 0;
         }
 
-        .grid-header {
-            width: 100%;
+        .map-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.6rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 0.75rem;
+            padding-bottom: 0.4rem;
         }
 
-        .grid-title {
+        .map-title {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.2rem;
+            font-size: 1.05rem;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
+        .map-wrapper {
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .leaflet-map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #16181f;
+        }
+
+        .stats-badge-container {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .stats-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stats-badge span {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
         .dijkstra-theme { color: var(--dijkstra-primary); }
         .astar-theme { color: var(--astar-primary); }
+        .static-theme { color: var(--static-primary); }
+        .dfs-theme { color: var(--dfs-primary); }
+
+        /* Grilles (Arène Grille) */
+        .grids-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .grid-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-height: 0;
+        }
 
         .grid-wrapper {
             position: relative;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.25);
             border-radius: 8px;
             overflow: hidden;
             padding: 2px;
             border: 1px solid rgba(255, 255, 255, 0.05);
+            margin: auto;
         }
 
         .grid {
@@ -272,7 +449,6 @@
             user-select: none;
         }
 
-        /* Cell Styling */
         .cell {
             aspect-ratio: 1;
             background-color: var(--empty-color);
@@ -304,235 +480,265 @@
             animation: wallCreate 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
 
-        /* Dijkstra Visited & Path */
-        .cell.visited-dijkstra {
-            animation: visitedDijkstra 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-        .cell.path-dijkstra {
-            animation: pathDijkstra 0.5s ease-in-out forwards;
-            box-shadow: 0 0 8px var(--dijkstra-primary);
-        }
+        .cell.visited-left { animation: visitedLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .cell.path-left { animation: pathLeft 0.4s ease-in-out forwards; }
+        .cell.visited-right { animation: visitedRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .cell.path-right { animation: pathRight 0.4s ease-in-out forwards; }
 
-        /* A* Visited & Path */
-        .cell.visited-astar {
-            animation: visitedAstar 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-        .cell.path-astar {
-            animation: pathAstar 0.5s ease-in-out forwards;
-            box-shadow: 0 0 8px var(--astar-primary);
-        }
-
-        /* Panel stats in grids */
-        .stats-badge-container {
-            display: flex;
-            gap: 0.75rem;
-        }
-
-        .stats-badge {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .stats-badge span {
-            color: var(--text-muted);
-            font-weight: 400;
-        }
-
-        /* Sidebar stats dashboard */
-        .dashboard-panel {
-            width: 320px;
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 20px;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        .dashboard-section-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .comparison-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            border-radius: 12px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .comparison-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-        }
-
-        .comparison-label {
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .comparison-values {
-            font-weight: 700;
-            text-align: right;
-        }
-
-        .summary-badge {
-            margin-top: 0.5rem;
-            padding: 0.75rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            line-height: 1.4;
-            font-weight: 500;
-        }
-        
-        .summary-badge-success {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            color: #34d399;
-        }
-
-        /* Keyframes */
         @keyframes nodePulse {
             0% { transform: scale(0.6); }
             50% { transform: scale(1.15); }
             100% { transform: scale(1.0); }
         }
-
         @keyframes wallCreate {
-            0% { transform: scale(0.5); background-color: var(--empty-color); }
-            100% { transform: scale(1.0); background-color: var(--obstacle-color); }
+            0% { transform: scale(0.5); }
+            100% { transform: scale(1.0); }
         }
 
-        @keyframes visitedDijkstra {
-            0% {
-                transform: scale(0.3);
-                background-color: var(--dijkstra-secondary);
-                border-radius: 100%;
-            }
-            50% {
-                background-color: var(--dijkstra-visited-new);
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--dijkstra-visited);
-                border-radius: 1px;
-            }
+        @keyframes visitedLeft {
+            0% { transform: scale(0.3); border-radius: 100%; }
+            100% { transform: scale(1.0); background-color: var(--left-visited-bg); border-radius: 1px; }
+        }
+        @keyframes pathLeft {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(1.0); background-color: var(--left-primary); box-shadow: 0 0 8px var(--left-primary); }
+        }
+        @keyframes visitedRight {
+            0% { transform: scale(0.3); border-radius: 100%; }
+            100% { transform: scale(1.0); background-color: var(--right-visited-bg); border-radius: 1px; }
+        }
+        @keyframes pathRight {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(1.0); background-color: var(--right-primary); box-shadow: 0 0 8px var(--right-primary); }
         }
 
-        @keyframes pathDijkstra {
-            0% {
-                transform: scale(0.6);
-                background-color: #0084ff;
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--dijkstra-primary);
-            }
+        /* Dashboard de Résultats Monte Carlo */
+        .mc-dashboard {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 1.25rem;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 0.5rem;
         }
 
-        @keyframes visitedAstar {
-            0% {
-                transform: scale(0.3);
-                background-color: var(--astar-secondary);
-                border-radius: 100%;
-            }
-            50% {
-                background-color: var(--astar-visited-new);
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--astar-visited);
-                border-radius: 1px;
-            }
+        .mc-dashboard::-webkit-scrollbar {
+            width: 5px;
+        }
+        .mc-dashboard::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
         }
 
-        @keyframes pathAstar {
-            0% {
-                transform: scale(0.6);
-                background-color: #c026d3;
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--astar-primary);
-            }
+        /* Tableau de Statistiques Récapitulatives */
+        .stats-table-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
 
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        .stats-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .stats-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-weight: 500;
+        }
+
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .model-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700 !important;
+        }
+
+        /* Graphiques en ligne */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            min-height: 320px;
+        }
+
+        .chart-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 250px;
+        }
+
+        /* Inspecteur d'essais */
+        .inspector-row {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 1.25rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            min-height: 400px;
+        }
+
+        .inspector-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            padding-right: 1.25rem;
+        }
+
+        .inspector-map-container {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            height: 100%;
+            min-height: 350px;
+        }
+
+        /* Overlay de Chargement / Simulation */
+        .sim-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 9, 15, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sim-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #fff;
+            border-bottom-color: var(--static-primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-container {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            height: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: 0.05em;
+        }
+
+        /* Alertes et info-bulles */
+        .info-card {
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #93c5fd;
+        }
+
+        .text-warning { color: #f39c12; }
+        .text-success { color: #10b981; }
+        .text-error { color: #ef4444; }
+
+        /* Pied de page */
         footer {
             margin-top: auto;
             text-align: center;
-            padding: 1rem;
-            font-size: 0.75rem;
+            padding: 0.8rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             border-top: 1px solid var(--panel-border);
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1000;
         }
 
-        .dfs-theme { color: var(--dfs-primary); }
-
-        .algo-select option {
-            background-color: #121420;
-            color: var(--text-main);
+        /* Custom Leaflet Map styling */
+        .leaflet-bar a {
+            background-color: #121420 !important;
+            color: var(--text-main) !important;
+            border-bottom: 1px solid var(--panel-border) !important;
         }
-
-        /* DFS Visited & Path */
-        .cell.visited-dfs {
-            animation: visitedDfs 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        .leaflet-bar a:hover {
+            background-color: #1e293b !important;
         }
-        .cell.path-dfs {
-            animation: pathDfs 0.5s ease-in-out forwards;
-            box-shadow: 0 0 8px var(--dfs-primary);
-        }
-        
-        @keyframes visitedDfs {
-            0% {
-                transform: scale(0.3);
-                background-color: var(--dfs-secondary);
-                border-radius: 100%;
-            }
-            50% {
-                background-color: var(--dfs-visited-new);
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--dfs-visited);
-                border-radius: 1px;
-            }
-        }
-
-        @keyframes pathDfs {
-            0% {
-                transform: scale(0.6);
-                background-color: #f39c12;
-            }
-            100% {
-                transform: scale(1.0);
-                background-color: var(--dfs-primary);
-            }
-        }
-
-        .highlight-win {
-            color: var(--start-color);
-            text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+        .marker-label {
+            background-color: rgba(8,9,15,0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -540,757 +746,1716 @@
 
     <header>
         <div>
-            <h1><i class="fa-solid fa-route"></i> Pathfinding Arena</h1>
-            <div class="subtitle">Dijkstra vs A* (Manhattan) : Comparaison de Performance en Temps Réel</div>
+            <h1><i class="fa-solid fa-route"></i> Simulateur Stochastique de Routage</h1>
+            <div class="subtitle">Méthode de Monte Carlo & Analyse comparée de Dijkstra, A* et Routage Statique</div>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-osm-arena')"><i class="fa-solid fa-earth-europe"></i> Arène OSM</button>
+            <button class="tab-btn" onclick="switchTab('tab-grid-arena')"><i class="fa-solid fa-border-all"></i> Arène Grille</button>
+            <button class="tab-btn" onclick="switchTab('tab-osm-mc')"><i class="fa-solid fa-chart-line"></i> Monte Carlo OSM</button>
+            <button class="tab-btn" onclick="switchTab('tab-grid-mc')"><i class="fa-solid fa-cubes"></i> Monte Carlo Grille</button>
         </div>
     </header>
 
-    <!-- Global Controls -->
-    <div class="controls-container">
-        <div class="control-group">
-            <label for="grid-size">Taille :</label>
-            <select id="grid-size">
-                <option value="15">15 x 15</option>
-                <option value="20" selected>20 x 20</option>
-                <option value="25">25 x 25</option>
-                <option value="30">30 x 30</option>
-            </select>
-        </div>
+    <!-- ================================================================= -->
+    <!-- TAB 1: ARENE ROUTIERE REELLE (OSM) -->
+    <!-- ================================================================= -->
+    <div id="tab-osm-arena" class="tab-content active">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-gear"></i> Paramètres OSM</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    Double-cliquez sur l'une des cartes pour repositionner le <strong>Départ</strong> et l'<strong>Arrivée</strong>. Tracez des obstacles pour bloquer des routes entières.
+                </p>
 
-        <div class="control-group">
-            <label for="heuristic-select">Heuristique A* :</label>
-            <select id="heuristic-select">
-                <option value="manhattan" selected>Manhattan (Admissible & Consistante)</option>
-                <option value="euclidean">Euclidienne (Admissible, Sous-estimée)</option>
-                <option value="weighted_manhattan">Manhattan Pondérée (x3, Inadmissible)</option>
-            </select>
-        </div>
+                <div class="form-group">
+                    <label for="osm-heuristic-select">Heuristique A* :</label>
+                    <select id="osm-heuristic-select">
+                        <option value="great_circle" selected>Orthodromique (Haversine)</option>
+                        <option value="euclidean">Euclidienne (Mètres)</option>
+                        <option value="weighted_manhattan">Pondérée (Manhattan x3, Inadmissible)</option>
+                    </select>
+                </div>
 
-        <div class="control-group">
-            <button id="btn-set-start" class="btn btn-start-select"><i class="fa-solid fa-location-dot"></i> Placer Départ</button>
-            <button id="btn-set-end" class="btn btn-end-select"><i class="fa-solid fa-flag"></i> Placer Arrivée</button>
-        </div>
+                <div class="form-group">
+                    <label for="osm-speed-slider">Vitesse d'animation :</label>
+                    <input type="range" id="osm-speed-slider" min="10" max="300" value="80" step="10">
+                </div>
 
-        <div class="control-group">
-            <button id="btn-generate-maze" class="btn"><i class="fa-solid fa-shuffle"></i> Labyrinthe Aléatoire</button>
-            <button id="btn-astar-trap" class="btn" style="border-color: #f39c12; color: #f39c12;"><i class="fa-solid fa-skull-crossbones"></i> Piège A* (Dijkstra Gagne)</button>
-            <button id="btn-clear-walls" class="btn"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
-            <button id="btn-clear-path" class="btn"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
-        </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color); opacity: 0.35;"></div>Obstacle (Zone)</div>
+                </div>
 
-        <div class="control-group">
-            <label for="speed-slider">Vitesse :</label>
-            <input type="range" id="speed-slider" min="5" max="150" value="40" step="5" style="width: 100px;">
-        </div>
+                <button id="btn-osm-run" class="btn btn-primary" onclick="runOSMArena()"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
+                <button id="btn-osm-clear-obstacles" class="btn btn-danger" onclick="clearOSMArenaObstacles()"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
+                <button id="btn-osm-clear-paths" class="btn" onclick="clearOSMArenaPaths()"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
 
-        <button id="btn-run" class="btn btn-primary"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
+                <div class="info-card">
+                    <i class="fa-solid fa-info-circle"></i> Le réseau de <strong>Chamonix-Mont-Blanc</strong> est chargé en tâche de fond. Le calcul s'effectue en Python sur le serveur Flask.
+                </div>
+            </div>
 
-        <!-- Legend -->
-        <div class="legend">
-            <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
-            <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
-            <div class="legend-item"><div class="legend-color" style="background-color: var(--obstacle-color);"></div>Obstacle</div>
-            <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra</div>
-            <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A*</div>
+            <div class="workspace">
+                <div class="maps-grid">
+                    <!-- Left Map (Dijkstra/DFS/A*) -->
+                    <div class="map-panel">
+                        <div class="map-header">
+                            <div class="map-title">
+                                <i class="fa-solid fa-compass dijkstra-theme" id="osm-left-icon"></i>
+                                <select id="osm-left-select" onchange="changeOSMTheme('left')">
+                                    <option value="dijkstra" selected>Dijkstra</option>
+                                    <option value="astar">A*</option>
+                                    <option value="dfs">DFS</option>
+                                </select>
+                            </div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="osm-stat-time-left">- ms</span></div>
+                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="osm-stat-nodes-left">- nœuds</span></div>
+                            </div>
+                        </div>
+                        <div class="map-wrapper">
+                            <div id="osm-map-left" class="leaflet-map"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right Map -->
+                    <div class="map-panel">
+                        <div class="map-header">
+                            <div class="map-title">
+                                <i class="fa-solid fa-bullseye astar-theme" id="osm-right-icon"></i>
+                                <select id="osm-right-select" onchange="changeOSMTheme('right')">
+                                    <option value="dijkstra">Dijkstra</option>
+                                    <option value="astar" selected>A*</option>
+                                    <option value="dfs">DFS</option>
+                                </select>
+                            </div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="osm-stat-time-right">- ms</span></div>
+                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="osm-stat-nodes-right">- nœuds</span></div>
+                            </div>
+                        </div>
+                        <div class="map-wrapper">
+                            <div id="osm-map-right" class="leaflet-map"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Récapitulatif -->
+                <div class="stats-table-card" style="padding: 1rem 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: var(--text-muted);">Comparaison Directe</span>
+                        <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
+                            <div>Distance : <span id="osm-res-dist-left" style="font-weight: 700;">-</span> vs <span id="osm-res-dist-right" style="font-weight: 700;">-</span></div>
+                            <div>Temps : <span id="osm-res-time-left" style="font-weight: 700;">-</span> vs <span id="osm-res-time-right" style="font-weight: 700;">-</span></div>
+                            <div>Explorés : <span id="osm-res-nodes-left" style="font-weight: 700;">-</span> vs <span id="osm-res-nodes-right" style="font-weight: 700;">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Main Workspace -->
-    <div class="workspace">
-        <!-- Grids Panels -->
-        <div class="grids-container">
-            <!-- Left Grid Panel -->
-            <div class="grid-panel">
-                <div class="grid-header">
-                    <div class="grid-title">
-                        <i class="fa-solid fa-compass dijkstra-theme" id="left-algo-icon"></i>
-                        <select id="left-algo-select" class="algo-select dijkstra-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
-                            <option value="dijkstra" selected>Dijkstra</option>
-                            <option value="astar">A*</option>
-                            <option value="dfs">DFS (Profondeur)</option>
-                        </select>
-                    </div>
-                    <div class="stats-badge-container">
-                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-left">- ms</span></div>
-                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-left">- nœuds</span></div>
-                    </div>
-                </div>
-                <div class="grid-wrapper">
-                    <div id="grid-dijkstra" class="grid"></div>
-                </div>
-            </div>
-
-            <!-- Right Grid Panel -->
-            <div class="grid-panel">
-                <div class="grid-header">
-                    <div class="grid-title">
-                        <i class="fa-solid fa-bullseye astar-theme" id="right-algo-icon"></i>
-                        <select id="right-algo-select" class="algo-select astar-theme" style="background:transparent; border:none; font-family:inherit; font-size:inherit; font-weight:inherit; color:inherit; cursor:pointer; outline:none; padding-right:10px;">
-                            <option value="dijkstra">Dijkstra</option>
-                            <option value="astar" selected>A*</option>
-                            <option value="dfs">DFS (Profondeur)</option>
-                        </select>
-                    </div>
-                    <div class="stats-badge-container">
-                        <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="stat-time-right">- ms</span></div>
-                        <div class="stats-badge"><i class="fa-solid fa-eye text-info"></i> <span id="stat-nodes-right">- nœuds</span></div>
-                    </div>
-                </div>
-                <div class="grid-wrapper">
-                    <div id="grid-astar" class="grid"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar Dashboard -->
-        <div class="dashboard-panel">
-            <div>
-                <h3 class="dashboard-section-title"><i class="fa-solid fa-chart-simple"></i> Dashboard</h3>
-                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.3;">
-                    Les calculs sont effectués en Python sur le serveur. L'animation montre l'ordre exact d'exploration des nœuds.
-                </p>
-                  <div class="comparison-card">
-                <h4 style="font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.35rem;">Résultats Algorithmiques</h4>
+    <!-- ================================================================= -->
+    <!-- TAB 2: ARENE ABSTRACT GRILLE (2D) -->
+    <!-- ================================================================= -->
+    <div id="tab-grid-arena" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-border-all"></i> Paramètres Grille</h3>
                 
-                <div class="comparison-row">
-                    <div class="comparison-label"><i class="fa-solid fa-arrows-left-right"></i> Longueur du chemin</div>
-                    <div class="comparison-values">
-                        <span id="path-len-left">-</span> / 
-                        <span id="path-len-right">-</span>
+                <div class="form-group">
+                    <label for="grid-size-select">Taille de grille :</label>
+                    <select id="grid-size-select" onchange="initGridArena()">
+                        <option value="15">15 x 15</option>
+                        <option value="20" selected>20 x 20</option>
+                        <option value="25">25 x 25</option>
+                        <option value="30">30 x 30</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="grid-heuristic-select">Heuristique A* :</label>
+                    <select id="grid-heuristic-select">
+                        <option value="manhattan" selected>Manhattan (L1, Admissible)</option>
+                        <option value="euclidean">Euclidienne (L2, Admissible)</option>
+                        <option value="weighted_manhattan">Manhattan Pondérée (x3, Inadmissible)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Mode de dessin :</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+                        <button id="btn-draw-wall" class="btn active" onclick="setGridDrawMode('obstacle')">Obstacle</button>
+                        <button id="btn-draw-erase" class="btn" onclick="setGridDrawMode('erase')">Gomme</button>
                     </div>
                 </div>
 
-                <div class="comparison-row">
-                    <div class="comparison-label"><i class="fa-solid fa-eye"></i> Nœuds visités</div>
-                    <div class="comparison-values">
-                        <span id="nodes-count-left">-</span> vs 
-                        <span id="nodes-count-right">-</span>
+                <div class="form-group">
+                    <label for="grid-speed-slider">Vitesse d'animation :</label>
+                    <input type="range" id="grid-speed-slider" min="5" max="150" value="40" step="5">
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
+                    <div class="legend-item"><div class="legend-color" style="background-color: var(--obstacle-color);"></div>Obstacle</div>
+                </div>
+
+                <button id="btn-grid-run" class="btn btn-primary" onclick="runGridArena()"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
+                <button class="btn" onclick="generateRandomMaze()"><i class="fa-solid fa-shuffle"></i> Labyrinthe Aléatoire</button>
+                <button class="btn" style="color: #f39c12; border-color: #f39c12;" onclick="generateAStarTrap()"><i class="fa-solid fa-skull-crossbones"></i> Piège pour A*</button>
+                <button class="btn btn-danger" onclick="clearGridArenaWalls()"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
+                <button class="btn" onclick="clearGridArenaPaths()"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
+            </div>
+
+            <div class="workspace">
+                <div class="grids-container">
+                    <!-- Left Grid (Dijkstra) -->
+                    <div class="grid-panel">
+                        <div class="grid-header" style="width: 100%">
+                            <div class="grid-title">
+                                <i class="fa-solid fa-compass dijkstra-theme" id="grid-left-icon"></i>
+                                <select id="grid-left-select" onchange="changeGridTheme('left')">
+                                    <option value="dijkstra" selected>Dijkstra</option>
+                                    <option value="astar">A*</option>
+                                    <option value="dfs">DFS</option>
+                                </select>
+                            </div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="grid-stat-time-left">- ms</span></div>
+                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="grid-stat-nodes-left">- nœuds</span></div>
+                            </div>
+                        </div>
+                        <div class="grid-wrapper">
+                            <div id="grid-left-el" class="grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right Grid (A*) -->
+                    <div class="grid-panel">
+                        <div class="grid-header" style="width: 100%">
+                            <div class="grid-title">
+                                <i class="fa-solid fa-bullseye astar-theme" id="grid-right-icon"></i>
+                                <select id="grid-right-select" onchange="changeGridTheme('right')">
+                                    <option value="dijkstra">Dijkstra</option>
+                                    <option value="astar" selected>A*</option>
+                                    <option value="dfs">DFS</option>
+                                </select>
+                            </div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="grid-stat-time-right">- ms</span></div>
+                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="grid-stat-nodes-right">- nœuds</span></div>
+                            </div>
+                        </div>
+                        <div class="grid-wrapper">
+                            <div id="grid-right-el" class="grid"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="comparison-row">
-                    <div class="comparison-label"><i class="fa-solid fa-stopwatch"></i> Temps de calcul</div>
-                    <div class="comparison-values">
-                        <span id="time-val-left">- ms</span> vs 
-                        <span id="time-val-right">- ms</span>
+                <div class="stats-table-card" style="padding: 1rem 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: var(--text-muted);">Résultats Grille</span>
+                        <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
+                            <div>Chemin : <span id="grid-res-path-left" style="font-weight: 700;">-</span> vs <span id="grid-res-path-right" style="font-weight: 700;">-</span></div>
+                            <div>Explorés : <span id="grid-res-nodes-left" style="font-weight: 700;">-</span> vs <span id="grid-res-nodes-right" style="font-weight: 700;">-</span></div>
+                            <div>Temps : <span id="grid-res-time-left" style="font-weight: 700;">-</span> vs <span id="grid-res-time-right" style="font-weight: 700;">-</span></div>
+                        </div>
                     </div>
-                </div>
-            </div>           </div>
-
-            <div>
-                <h3 class="dashboard-section-title"><i class="fa-solid fa-lightbulb"></i> Analyse A*</h3>
-                <div id="summary-container">
-                    <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
-                        Dessinez des obstacles sur la grille, puis cliquez sur <strong>Lancer la Comparaison</strong>.
-                    </p>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: SIMULATEUR MONTE CARLO (OSM) -->
+    <!-- ================================================================= -->
+    <div id="tab-osm-mc" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-chart-line"></i> Monte Carlo (OSM)</h3>
+                
+                <div class="form-group">
+                    <label for="mc-osm-trials">Nombre d'essais (N) :</label>
+                    <input type="number" id="mc-osm-trials" min="10" max="500" value="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="mc-osm-traffic">Densité du trafic :</label>
+                    <select id="mc-osm-traffic">
+                        <option value="low">Trafic Faible (Congestion ~3%)</option>
+                        <option value="medium" selected>Trafic Modéré (Congestion ~21%)</option>
+                        <option value="heavy">Trafic Dense (Congestion ~64%)</option>
+                        <option value="extreme">Trafic Critique (Congestion ~140%)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="mc-osm-closure">Fermeture de routes (accidents) :</label>
+                    <select id="mc-osm-closure">
+                        <option value="0.0">Aucune (0%)</option>
+                        <option value="0.01">Faible (1%)</option>
+                        <option value="0.02" selected>Modérée (2%)</option>
+                        <option value="0.05">Forte (5%)</option>
+                        <option value="0.10">Sévère (10%)</option>
+                    </select>
+                </div>
+
+                <div class="info-card">
+                    <strong style="color: #fff">Modèles Comparés :</strong>
+                    <ul style="margin-left: 1rem; margin-top: 0.25rem; font-size: 0.7rem;">
+                        <li><strong>Dijkstra Dynamique</strong> : Calcul optimal continu en temps réel (Optimum théorique).</li>
+                        <li><strong>A* Dynamique</strong> : Chemin optimal géographique calculé en temps réel.</li>
+                        <li><strong>Routeur Statique</strong> : Planifie sur le réseau moyen, et ne recalcule qu'en cas de route bloquée.</li>
+                    </ul>
+                </div>
+
+                <button class="btn btn-primary" onclick="runOSMMonteCarlo()"><i class="fa-solid fa-play"></i> Démarrer Monte Carlo</button>
+            </div>
+
+            <div class="workspace">
+                <div class="mc-dashboard">
+                    <!-- 1. Stats Table -->
+                    <div class="stats-table-card">
+                        <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Indicateurs de Performance Généraux (Sur <span id="mc-osm-tot-trials">-</span> essais)</h4>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Modèle de Routage</th>
+                                    <th>Taux de Succès</th>
+                                    <th>Temps de Parcours (Moyen)</th>
+                                    <th>Écart-Type (Volatilité)</th>
+                                    <th>Intervalle de Confiance (95%)</th>
+                                    <th>Fiabilité (90e Percentile)</th>
+                                    <th>Optimality Gap (%)</th>
+                                    <th>Calcul (Moyen)</th>
+                                    <th>Nœuds Explorés</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mc-osm-stats-body">
+                                <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Lancez une simulation pour afficher les statistiques de votre mémoire.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 2. Charts Row -->
+                    <div class="charts-row">
+                        <div class="chart-card">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-chart-bar"></i> Distribution des temps de parcours (Histogramme)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-osm-histogram"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-chart-line"></i> Convergence de la moyenne (Loi des Grands Nombres)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-osm-convergence"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Trial Inspector (Synchronized Map) -->
+                    <div class="inspector-row">
+                        <div class="inspector-sidebar">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-magnifying-glass"></i> Inspecteur d'Essais</h4>
+                            <p style="font-size: 0.75rem; color: var(--text-muted);">
+                                Sélectionnez un essai particulier pour afficher la réalisation du réseau routier et les itinéraires choisis.
+                            </p>
+                            
+                            <div class="form-group" style="margin-top: 0.5rem;">
+                                <label for="inspector-trial-select">Choisir un Essai :</label>
+                                <select id="inspector-trial-select" onchange="inspectOSMTrial(this.value)" disabled>
+                                    <option value="">-- Aucune simulation lancée --</option>
+                                </select>
+                            </div>
+
+                            <div id="inspector-trial-details" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                                <!-- Details populate here -->
+                            </div>
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                            <div class="inspector-map-container">
+                                <div id="mc-inspector-map" class="leaflet-map"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: SIMULATEUR MONTE CARLO (GRILLE & PERCOLATION) -->
+    <!-- ================================================================= -->
+    <div id="tab-grid-mc" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-cubes"></i> Monte Carlo (Grille)</h3>
+                
+                <div class="form-group">
+                    <label for="mc-grid-size">Taille de la grille :</label>
+                    <select id="mc-grid-size">
+                        <option value="15">15 x 15</option>
+                        <option value="20" selected>20 x 20</option>
+                        <option value="25">25 x 25</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="mc-grid-trials">Nombre d'essais (N) :</label>
+                    <input type="number" id="mc-grid-trials" min="10" max="500" value="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="mc-grid-obstacle-prob">Densité d'obstacles aléatoires :</label>
+                    <select id="mc-grid-obstacle-prob">
+                        <option value="0.05">Très Faible (5%)</option>
+                        <option value="0.15" selected>Faible (15%)</option>
+                        <option value="0.25">Moyenne (25%)</option>
+                        <option value="0.35">Forte / Seuil critique (35%)</option>
+                        <option value="0.45">Extrême (45%)</option>
+                    </select>
+                </div>
+
+                <div class="info-card" style="background: rgba(241, 196, 15, 0.05); border-color: rgba(241, 196, 15, 0.15); color: #fef08a;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>Seuil de Percolation :</strong> Sur une grille 2D infinie, au-delà d'environ 41% d'obstacles, la probabilité qu'un chemin reliant le départ à l'arrivée existe chute brutalement à 0. C'est la transition de phase.
+                </div>
+
+                <button class="btn btn-primary" onclick="runGridMonteCarlo()"><i class="fa-solid fa-play"></i> Lancer la Simulation</button>
+            </div>
+
+            <div class="workspace">
+                <div class="mc-dashboard">
+                    <!-- 1. Stats Table -->
+                    <div class="stats-table-card">
+                        <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Métriques de percolation de Grille</h4>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Algorithme de Recherche</th>
+                                    <th>Connectivité (Taux de Succès)</th>
+                                    <th>Longueur Moyenne du Chemin</th>
+                                    <th>Écart-Type Longueur</th>
+                                    <th>Nœuds Explorés (Moyen)</th>
+                                    <th>Temps de Calcul (Moyen)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mc-grid-stats-body">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Lancez une simulation pour analyser le seuil de percolation sur grille.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 2. Charts Row -->
+                    <div class="charts-row">
+                        <div class="chart-card">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-chart-column"></i> Efficacité algorithmique (Nœuds explorés)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-grid-nodes"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-chart-line"></i> Temps de calcul moyen (ms)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-grid-comp"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Grid Trial Inspector -->
+                    <div class="inspector-row">
+                        <div class="inspector-sidebar">
+                            <h4 style="font-size: 0.85rem;"><i class="fa-solid fa-magnifying-glass"></i> Inspecteur d'Essais de Grille</h4>
+                            <p style="font-size: 0.75rem; color: var(--text-muted);">
+                                Visualisez la configuration spatiale spécifique des obstacles générés lors d'un essai.
+                            </p>
+                            
+                            <div class="form-group" style="margin-top: 0.5rem;">
+                                <label for="inspector-grid-trial-select">Choisir un Essai :</label>
+                                <select id="inspector-grid-trial-select" onchange="inspectGridTrial(this.value)" disabled>
+                                    <option value="">-- Aucune simulation lancée --</option>
+                                </select>
+                            </div>
+
+                            <div id="inspector-grid-trial-details" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            </div>
+                        </div>
+                        <div style="flex: 1; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 1.5rem;">
+                            <div class="grid-wrapper">
+                                <div id="mc-grid-inspector-el" class="grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SIMULATION RUNNING OVERLAY -->
+    <!-- ================================================================= -->
+    <div id="sim-overlay" class="sim-overlay">
+        <span class="loader"></span>
+        <div class="progress-text" id="sim-overlay-title">SIMULATION DE MONTE CARLO EN COURS...</div>
+        <div class="progress-container">
+            <div id="sim-overlay-bar" class="progress-bar"></div>
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.8rem;" id="sim-overlay-detail">Calcul des trajectoires stochastiques en Python...</div>
     </div>
 
     <footer>
-        Visualisateur Dijkstra vs A* &copy; 2026 - Conçu avec Flask & Vanilla CSS
+        Mémoire de Recherche : Analyse de l'Efficacité des Algorithmes de Routage par Simulation de Monte Carlo &copy; 2026
     </footer>
 
     <script>
         // --- Shared Application State ---
-        let rows = 20;
-        let cols = 20;
-        
-        let startPos = [4, 4];
-        let endPos = [15, 15];
-        let obstacles = new Set(); // Stores string "r,c"
-        
-        let isMouseDown = false;
-        let drawMode = 'obstacle'; // 'obstacle', 'erase', 'start', 'end'
-        
+        let currentTab = 'tab-osm-arena';
         let isAnimating = false;
         let animationIntervals = [];
 
-        // DOM elements
-        const gridSizeSelect = document.getElementById('grid-size');
-        const heuristicSelect = document.getElementById('heuristic-select');
-        const leftAlgoSelect = document.getElementById('left-algo-select');
-        const rightAlgoSelect = document.getElementById('right-algo-select');
-        const btnSetStart = document.getElementById('btn-set-start');
-        const btnSetEnd = document.getElementById('btn-set-end');
-        const btnGenerateMaze = document.getElementById('btn-generate-maze');
-        const btnAStarTrap = document.getElementById('btn-astar-trap');
-        const btnClearWalls = document.getElementById('btn-clear-walls');
-        const btnClearPath = document.getElementById('btn-clear-path');
-        const btnRun = document.getElementById('btn-run');
-        const speedSlider = document.getElementById('speed-slider');
-        
-        const gridDijkstra = document.getElementById('grid-dijkstra');
-        const gridAstar = document.getElementById('grid-astar');
+        // Dynamic chart references
+        let charts = {};
 
-        // --- Grid Generation ---
-        function initGrids() {
-            stopAnimations();
-            clearPathColors();
-            
-            // Validate start and end positions
-            if (startPos[0] >= rows || startPos[1] >= cols) {
-                startPos = [0, 0];
+        // OSM Arena State
+        let startLatLng = [45.9180, 6.8580];
+        let endLatLng = [45.9280, 6.8780];
+        let osmMapLeft = null, osmMapRight = null;
+        let osmStartMarkerLeft = null, osmStartMarkerRight = null;
+        let osmEndMarkerLeft = null, osmEndMarkerRight = null;
+        let osmObstaclesLeft = [];
+        let osmObstaclesRight = [];
+        let osmDrawnItems = null;
+        let osmActiveExploredLeft = [];
+        let osmActiveExploredRight = [];
+        let osmActivePathsLeft = [];
+        let osmActivePathsRight = [];
+
+        // Grid Arena State
+        let gridSize = 20;
+        let gridStartPos = [4, 4];
+        let gridEndPos = [15, 15];
+        let gridObstacles = new Set(); // Stores string "r,c"
+        let isGridMouseDown = false;
+        let gridDrawMode = 'obstacle'; // 'obstacle', 'erase'
+        let gridLeftTheme = 'dijkstra';
+        let gridRightTheme = 'astar';
+
+        // OSM Monte Carlo Simulation Cache
+        let osmMCDataCache = null;
+        let osmInspectorMap = null;
+        let osmInspectorLayers = [];
+        let osmInspectorStartMarker = null;
+        let osmInspectorEndMarker = null;
+
+        // Grid Monte Carlo Cache
+        let gridMCDataCache = null;
+        let gridMCSizeCache = 20;
+        let gridMCStartCache = [0, 0];
+        let gridMCEndCache = [0, 0];
+
+        // Global color definitions
+        const colors = {
+            dijkstra: { primary: '#00f3ff', secondary: 'rgba(0, 243, 255, 0.15)', visited: 'rgba(0, 243, 255, 0.35)', visited_new: 'rgba(0, 168, 255, 0.7)' },
+            astar: { primary: '#ec4899', secondary: 'rgba(236, 72, 153, 0.15)', visited: 'rgba(236, 72, 153, 0.35)', visited_new: 'rgba(192, 38, 211, 0.7)' },
+            static: { primary: '#3b82f6', secondary: 'rgba(59, 130, 246, 0.15)' },
+            dfs: { primary: '#f1c40f', secondary: 'rgba(241, 196, 15, 0.15)', visited: 'rgba(241, 196, 15, 0.35)', visited_new: 'rgba(243, 156, 18, 0.7)' }
+        };
+
+        // --- Tab Management ---
+        function switchTab(tabId) {
+            if (isAnimating) {
+                alert("Veuillez arrêter l'animation en cours avant de changer d'onglet.");
+                return;
             }
-            if (endPos[0] >= rows || endPos[1] >= cols) {
-                endPos = [rows - 1, cols - 1];
-            }
-            
-            setupGridElement(gridDijkstra, 'left');
-            setupGridElement(gridAstar, 'right');
-            
-            updateAlgoPanelThemes();
-            resetStats();
-        }
+            stopAllAnimations();
 
-        function updateAlgoPanelThemes() {
-            // Update left panel
-            const leftVal = leftAlgoSelect.value;
-            leftAlgoSelect.className = `algo-select ${leftVal}-theme`;
-            const leftIcon = document.getElementById('left-algo-icon');
-            leftIcon.className = leftVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
-                               (leftVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
-            
-            // Update right panel
-            const rightVal = rightAlgoSelect.value;
-            rightAlgoSelect.className = `algo-select ${rightVal}-theme`;
-            const rightIcon = document.getElementById('right-algo-icon');
-            rightIcon.className = rightVal === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' : 
-                                (rightVal === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
-        }
+            // Set buttons active
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
 
-        function setupGridElement(gridEl, type) {
-            gridEl.innerHTML = '';
-            gridEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-            gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-            
-            // Cell size is calculated dynamically to keep it square and fit perfectly
-            const cellWidth = Math.min(32, Math.floor(580 / Math.max(rows, cols)));
-            gridEl.style.width = `${cellWidth * cols}px`;
-            gridEl.style.height = `${cellWidth * rows}px`;
-            
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
-                    cell.dataset.gridType = type;
-                    
-                    updateCellVisuals(cell, r, c);
-                    
-                    // Event listeners for interactive drawing
-                    cell.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        if (isAnimating) return;
-                        isMouseDown = true;
-                        handleCellInteraction(r, c);
-                    });
-                    
-                    cell.addEventListener('mouseenter', () => {
-                        if (isMouseDown && !isAnimating) {
-                            handleCellInteraction(r, c);
-                        }
-                    });
-                    
-                    gridEl.appendChild(cell);
-                }
+            // Toggle contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            currentTab = tabId;
+
+            // Invalidate Map sizes (Leaflet requirement)
+            if (tabId === 'tab-osm-arena') {
+                setTimeout(() => {
+                    osmMapLeft.invalidateSize();
+                    osmMapRight.invalidateSize();
+                }, 50);
+            } else if (tabId === 'tab-osm-mc') {
+                initOSMInspectorMap();
+            } else if (tabId === 'tab-grid-arena') {
+                initGridArena();
             }
         }
 
-        function handleCellInteraction(r, c) {
-            const key = `${r},${c}`;
-            
-            if (drawMode === 'start') {
-                if (endPos[0] === r && endPos[1] === c) return; // Cannot overwrite end
-                startPos = [r, c];
-                obstacles.delete(key);
-                btnSetStart.classList.remove('active');
-                drawMode = 'obstacle';
-                syncAllCells();
-            } else if (drawMode === 'end') {
-                if (startPos[0] === r && startPos[1] === c) return; // Cannot overwrite start
-                endPos = [r, c];
-                obstacles.delete(key);
-                btnSetEnd.classList.remove('active');
-                drawMode = 'obstacle';
-                syncAllCells();
-            } else {
-                // Drawing obstacles or erasing
-                if ((startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c)) {
-                    return; // Can't draw walls on start or end
-                }
-                
-                // Set erase mode if clicking an existing wall
-                if (obstacles.has(key)) {
-                    obstacles.delete(key);
-                } else {
-                    obstacles.add(key);
-                }
-                syncCellAt(r, c);
-            }
-        }
-
-        function syncCellAt(r, c) {
-            const cells = document.querySelectorAll(`.cell[data-row="${r}"][data-col="${c}"]`);
-            cells.forEach(cell => {
-                updateCellVisuals(cell, r, c);
-            });
-        }
-
-        function syncAllCells() {
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    syncCellAt(r, c);
-                }
-            }
-        }
-
-        function updateCellVisuals(cell, r, c) {
-            const key = `${r},${c}`;
-            cell.className = 'cell';
-            
-            if (startPos[0] === r && startPos[1] === c) {
-                cell.classList.add('start');
-            } else if (endPos[0] === r && endPos[1] === c) {
-                cell.classList.add('end');
-            } else if (obstacles.has(key)) {
-                cell.classList.add('obstacle');
-            }
-        }
-
-        // --- Maze Generation ---
-        function generateRandomMaze() {
-            if (isAnimating) return;
-            stopAnimations();
-            clearPathColors();
-            obstacles.clear();
-            
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    // Avoid start and end nodes
-                    if ((startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c)) {
-                        continue;
-                    }
-                    
-                    // 28% chance of putting a wall
-                    if (Math.random() < 0.28) {
-                        obstacles.add(`${r},${c}`);
-                    }
-                }
-            }
-            syncAllCells();
-            resetStats();
-        }
-
-        // --- A* Trap (Dijkstra Wins) Generation ---
-        function generateAStarTrap() {
-            if (isAnimating) return;
-            stopAnimations();
-            clearPathColors();
-            obstacles.clear();
-            
-            // Force 20x20 dimensions for the spiral to look perfect
-            gridSizeSelect.value = "20";
-            rows = 20;
-            cols = 20;
-            
-            // Re-render grids to ensure size updates correctly
-            setupGridElement(gridDijkstra, 'dijkstra');
-            setupGridElement(gridAstar, 'astar');
-            
-            function line(r1, c1, r2, c2) {
-                const pts = [];
-                if (r1 === r2) {
-                    const step = c1 < c2 ? 1 : -1;
-                    for (let c = c1; c !== c2 + step; c += step) pts.push([r1, c]);
-                } else if (c1 === c2) {
-                    const step = r1 < r2 ? 1 : -1;
-                    for (let r = r1; r !== r2 + step; r += step) pts.push([r, c1]);
-                }
-                return pts;
-            }
-            
-            // Draw a spiral starting from outer to inner
-            const walls = [
-                // Outer wall
-                ...line(2, 2, 2, 17), ...line(2, 17, 17, 17), ...line(17, 17, 17, 2), ...line(17, 2, 4, 2),
-                // Inner loop 1
-                ...line(4, 4, 4, 15), ...line(4, 15, 15, 15), ...line(15, 15, 15, 4), ...line(15, 4, 6, 4),
-                // Inner loop 2
-                ...line(6, 6, 6, 13), ...line(6, 13, 13, 13), ...line(13, 13, 13, 6), ...line(13, 6, 8, 6),
-                // Inner loop 3
-                ...line(8, 8, 8, 11), ...line(8, 11, 11, 11), ...line(11, 11, 11, 8)
-            ];
-            
-            walls.forEach(([r, c]) => {
-                obstacles.add(`${r},${c}`);
-            });
-            
-            // Start is in the center, End is in the outer corridor
-            startPos = [9, 9];
-            endPos = [3, 3];
-            
-            // Clean up start and end cells
-            obstacles.delete(`${startPos[0]},${startPos[1]}`);
-            obstacles.delete(`${endPos[0]},${endPos[1]}`);
-            
-            syncAllCells();
-            resetStats();
-        }
-
-        // --- Clearing operations ---
-        function clearWalls() {
-            if (isAnimating) return;
-            stopAnimations();
-            clearPathColors();
-            obstacles.clear();
-            syncAllCells();
-            resetStats();
-        }
-
-        function clearPathColors() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
-                cell.classList.remove(
-                    'visited-dijkstra', 'path-dijkstra', 
-                    'visited-astar', 'path-astar',
-                    'visited-dfs', 'path-dfs'
-                );
-            });
-        }
-
-        function stopAnimations() {
-            animationIntervals.forEach(interval => clearInterval(interval));
+        function stopAllAnimations() {
+            animationIntervals.forEach(clearInterval);
             animationIntervals = [];
             isAnimating = false;
-            btnRun.disabled = false;
-            btnRun.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
+            
+            // Restore run buttons
+            const btnOsm = document.getElementById('btn-osm-run');
+            if (btnOsm) {
+                btnOsm.disabled = false;
+                btnOsm.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
+            }
+            const btnGrid = document.getElementById('btn-grid-run');
+            if (btnGrid) {
+                btnGrid.disabled = false;
+                btnGrid.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
+            }
         }
 
-        function resetStats() {
-            document.getElementById('stat-time-left').textContent = '- ms';
-            document.getElementById('stat-nodes-left').textContent = '- nœuds';
-            document.getElementById('stat-time-right').textContent = '- ms';
-            document.getElementById('stat-nodes-right').textContent = '- nœuds';
-            
-            document.getElementById('path-len-left').textContent = '-';
-            document.getElementById('path-len-right').textContent = '-';
-            document.getElementById('nodes-count-left').textContent = '-';
-            document.getElementById('nodes-count-right').textContent = '-';
-            document.getElementById('time-val-left').textContent = '- ms';
-            document.getElementById('time-val-right').textContent = '- ms';
-            
-            document.getElementById('summary-container').innerHTML = `
-                <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
-                    Configurez la grille et cliquez sur <strong>Lancer la Comparaison</strong>.
-                </p>
-            `;
-        }
+        // =================================================================
+        // ARENE CARTOGRAPHIQUE (OSM) - LOGIQUE
+        // =================================================================
+        function initOSMArena() {
+            // CartoDB Positron Dark style
+            const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+            const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-        // --- Pathfinding & Animations ---
-        async function runComparison() {
-            if (isAnimating) return;
-            
-            stopAnimations();
-            clearPathColors();
-            resetStats();
-            
-            isAnimating = true;
-            btnRun.disabled = true;
-            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Calcul en cours...`;
-            
-            // Build the payload
-            const obstaclesArray = [];
-            obstacles.forEach(key => {
-                const [r, c] = key.split(',').map(Number);
-                obstaclesArray.push([r, c]);
+            osmMapLeft = L.map('osm-map-left', { doubleClickZoom: false }).setView([45.9227, 6.8685], 14);
+            osmMapRight = L.map('osm-map-right', { doubleClickZoom: false }).setView([45.9227, 6.8685], 14);
+
+            L.tileLayer(tileUrl, { attribution }).addTo(osmMapLeft);
+            L.tileLayer(tileUrl, { attribution }).addTo(osmMapRight);
+
+            // Synchronize views
+            let isMoving = false;
+            osmMapLeft.on('move', () => {
+                if (!isMoving) {
+                    isMoving = true;
+                    osmMapRight.setView(osmMapLeft.getCenter(), osmMapLeft.getZoom(), { animate: false });
+                    isMoving = false;
+                }
             });
-            
-            const payload = {
-                rows: rows,
-                cols: cols,
-                start: startPos,
-                end: endPos,
-                obstacles: obstaclesArray,
-                algorithm: 'both',
-                heuristic: heuristicSelect.value
+            osmMapRight.on('move', () => {
+                if (!isMoving) {
+                    isMoving = true;
+                    osmMapLeft.setView(osmMapRight.getCenter(), osmMapRight.getZoom(), { animate: false });
+                    isMoving = false;
+                }
+            });
+
+            // Set up markers
+            updateOSMMarkers();
+
+            // Double click listeners to move markers
+            const handleDblClick = (e) => {
+                if (isAnimating) return;
+                const latlng = e.latlng;
+                const distStart = Math.pow(latlng.lat - startLatLng[0], 2) + Math.pow(latlng.lng - startLatLng[1], 2);
+                const distEnd = Math.pow(latlng.lat - endLatLng[0], 2) + Math.pow(latlng.lng - endLatLng[1], 2);
+
+                if (distStart < distEnd) {
+                    startLatLng = [latlng.lat, latlng.lng];
+                } else {
+                    endLatLng = [latlng.lat, latlng.lng];
+                }
+                updateOSMMarkers();
+                clearOSMArenaPaths();
             };
-            
+
+            osmMapLeft.on('dblclick', handleDblClick);
+            osmMapRight.on('dblclick', handleDblClick);
+
+            // Add Leaflet Draw to the left map, syncing drawn obstacle shapes to the right map
+            osmDrawnItems = new L.FeatureGroup();
+            osmMapLeft.addLayer(osmDrawnItems);
+
+            const drawControl = new L.Control.Draw({
+                edit: false,
+                draw: {
+                    polyline: false, circle: false, circlemarker: false, marker: false,
+                    rectangle: true,
+                    polygon: {
+                        allowIntersection: false,
+                        shapeOptions: { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }
+                    }
+                }
+            });
+            osmMapLeft.addControl(drawControl);
+
+            osmMapLeft.on(L.Draw.Event.CREATED, (e) => {
+                if (isAnimating) return;
+                const layer = e.layer;
+                osmDrawnItems.addLayer(layer);
+                osmObstaclesLeft.push(layer);
+
+                // Sync to right map
+                let rightLayer;
+                if (e.layerType === 'rectangle') {
+                    rightLayer = L.rectangle(layer.getBounds(), { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }).addTo(osmMapRight);
+                } else {
+                    rightLayer = L.polygon(layer.getLatLngs(), { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }).addTo(osmMapRight);
+                }
+                osmObstaclesRight.push(rightLayer);
+                clearOSMArenaPaths();
+            });
+
+            changeOSMTheme('left');
+            changeOSMTheme('right');
+        }
+
+        function updateOSMMarkers() {
+            if (osmStartMarkerLeft) osmMapLeft.removeLayer(osmStartMarkerLeft);
+            if (osmStartMarkerRight) osmMapRight.removeLayer(osmStartMarkerRight);
+            if (osmEndMarkerLeft) osmMapLeft.removeLayer(osmEndMarkerLeft);
+            if (osmEndMarkerRight) osmMapRight.removeLayer(osmEndMarkerRight);
+
+            const startHTML = '<i class="fa-solid fa-location-dot" style="color:#10b981;"></i> DÉPART';
+            const endHTML = '<i class="fa-solid fa-flag" style="color:#ef4444;"></i> ARRIVÉE';
+
+            const startIcon = L.divIcon({ className: 'marker-label', html: startHTML, iconSize: [60, 20], iconAnchor: [30, 20] });
+            const endIcon = L.divIcon({ className: 'marker-label', html: endHTML, iconSize: [65, 20], iconAnchor: [32, 20] });
+
+            osmStartMarkerLeft = L.marker(startLatLng, { draggable: true, icon: startIcon }).addTo(osmMapLeft);
+            osmEndMarkerLeft = L.marker(endLatLng, { draggable: true, icon: endIcon }).addTo(osmMapLeft);
+            osmStartMarkerRight = L.marker(startLatLng, { draggable: true, icon: startIcon }).addTo(osmMapRight);
+            osmEndMarkerRight = L.marker(endLatLng, { draggable: true, icon: endIcon }).addTo(osmMapRight);
+
+            // Bind dragging
+            const bindDrag = (mSrc, mDst, type) => {
+                mSrc.on('drag', (e) => {
+                    const latlng = e.target.getLatLng();
+                    if (type === 'start') startLatLng = [latlng.lat, latlng.lng];
+                    else endLatLng = [latlng.lat, latlng.lng];
+                    mDst.setLatLng(latlng);
+                });
+                mSrc.on('dragend', () => {
+                    clearOSMArenaPaths();
+                });
+            };
+
+            bindDrag(osmStartMarkerLeft, osmStartMarkerRight, 'start');
+            bindDrag(osmStartMarkerRight, osmStartMarkerLeft, 'start');
+            bindDrag(osmEndMarkerLeft, osmEndMarkerRight, 'end');
+            bindDrag(osmEndMarkerRight, osmEndMarkerLeft, 'end');
+        }
+
+        function changeOSMTheme(side) {
+            const select = document.getElementById(`osm-${side}-select`);
+            const val = select.value;
+            select.className = `${val}-theme`;
+            const icon = document.getElementById(`osm-${side}-icon`);
+            icon.className = val === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' :
+                             (val === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
+            clearOSMArenaPaths();
+        }
+
+        function clearOSMArenaObstacles() {
+            if (isAnimating) return;
+            osmDrawnItems.clearLayers();
+            osmObstaclesRight.forEach(layer => osmMapRight.removeLayer(layer));
+            osmObstaclesLeft = [];
+            osmObstaclesRight = [];
+            clearOSMArenaPaths();
+        }
+
+        function clearOSMArenaPaths() {
+            osmActivePathsLeft.forEach(l => osmMapLeft.removeLayer(l));
+            osmActivePathsRight.forEach(l => osmMapRight.removeLayer(l));
+            osmActiveExploredLeft.forEach(l => osmMapLeft.removeLayer(l));
+            osmActiveExploredRight.forEach(l => osmMapRight.removeLayer(l));
+
+            osmActivePathsLeft = [];
+            osmActivePathsRight = [];
+            osmActiveExploredLeft = [];
+            osmActiveExploredRight = [];
+
+            document.getElementById('osm-stat-time-left').textContent = '- ms';
+            document.getElementById('osm-stat-nodes-left').textContent = '- nœuds';
+            document.getElementById('osm-stat-time-right').textContent = '- ms';
+            document.getElementById('osm-stat-nodes-right').textContent = '- nœuds';
+
+            document.getElementById('osm-res-dist-left').textContent = '-';
+            document.getElementById('osm-res-dist-right').textContent = '-';
+            document.getElementById('osm-res-time-left').textContent = '- ms';
+            document.getElementById('osm-res-time-right').textContent = '- ms';
+            document.getElementById('osm-res-nodes-left').textContent = '-';
+            document.getElementById('osm-res-nodes-right').textContent = '-';
+        }
+
+        async function runOSMArena() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearOSMArenaPaths();
+
+            const btn = document.getElementById('btn-osm-run');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Résolution...`;
+            isAnimating = true;
+
+            // Extract polygon obstacles geometries
+            const obstaclesArray = [];
+            osmDrawnItems.eachLayer((layer) => {
+                const coords = [];
+                const latlngs = layer.getLatLngs()[0];
+                latlngs.forEach(ll => coords.push([ll.lat, ll.lng]));
+                obstaclesArray.push(coords);
+            });
+
+            const payload = {
+                start: startLatLng,
+                end: endLatLng,
+                obstacles: obstaclesArray,
+                heuristic: document.getElementById('osm-heuristic-select').value
+            };
+
             try {
-                const response = await fetch('/api/solve', {
+                const response = await fetch('/api/solve_osm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 
                 if (!response.ok) {
-                    throw new Error("HTTP error on solver API");
+                    const err = await response.json();
+                    throw new Error(err.error || "Erreur de communication avec le serveur.");
                 }
-                
                 const data = await response.json();
-                animateResults(data);
                 
+                // Snap start/end locations slightly
+                startLatLng = data.meta.start_node_coords;
+                endLatLng = data.meta.end_node_coords;
+                updateOSMMarkers();
+
+                animateOSMArenaResults(data);
             } catch (err) {
-                console.error("Pathfinding error:", err);
-                alert("Une erreur s'est produite lors de l'appel au solveur Python.");
-                stopAnimations();
+                alert("Erreur : " + err.message);
+                stopAllAnimations();
             }
         }
 
-        function animateResults(data) {
-            btnRun.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Animation en cours...`;
-            
-            const speed = parseInt(speedSlider.value);
-            const leftAlgo = leftAlgoSelect.value;
-            const rightAlgo = rightAlgoSelect.value;
-            
+        function animateOSMArenaResults(data) {
+            const leftAlgo = document.getElementById('osm-left-select').value;
+            const rightAlgo = document.getElementById('osm-right-select').value;
+            const speed = parseInt(document.getElementById('osm-speed-slider').value);
+
             const leftData = data[leftAlgo];
             const rightData = data[rightAlgo];
-            
+
             const leftExplored = leftData.explored;
-            const leftPath = leftData.path;
-            
             const rightExplored = rightData.explored;
-            const rightPath = rightData.path;
-            
+
             let lIdx = 0;
             let rIdx = 0;
-            
+
             const timer = setInterval(() => {
                 let active = false;
-                
-                // Animate Left Grid step
+
                 if (lIdx < leftExplored.length) {
-                    const [r, c] = leftExplored[lIdx];
-                    if (!isStartOrEnd(r, c)) {
-                        const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add(`visited-${leftAlgo}`);
-                    }
+                    const m = L.circleMarker(leftExplored[lIdx], { radius: 3, color: colors[leftAlgo].primary, weight: 1, fillOpacity: 0.5 }).addTo(osmMapLeft);
+                    osmActiveExploredLeft.push(m);
                     lIdx++;
                     active = true;
                 }
-                
-                // Animate Right Grid step
+
                 if (rIdx < rightExplored.length) {
-                    const [r, c] = rightExplored[rIdx];
-                    if (!isStartOrEnd(r, c)) {
-                        const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add(`visited-${rightAlgo}`);
-                    }
+                    const m = L.circleMarker(rightExplored[rIdx], { radius: 3, color: colors[rightAlgo].primary, weight: 1, fillOpacity: 0.5 }).addTo(osmMapRight);
+                    osmActiveExploredRight.push(m);
                     rIdx++;
                     active = true;
                 }
-                
-                // Check if expansion animation finished
+
                 if (!active) {
                     clearInterval(timer);
-                    // Draw paths
-                    drawPaths(leftPath, rightPath, data);
+                    // Draw final paths
+                    if (leftData.path) {
+                        const p = L.polyline(leftData.path, { color: colors[leftAlgo].primary, weight: 5, opacity: 0.85 }).addTo(osmMapLeft);
+                        osmActivePathsLeft.push(p);
+                    }
+                    if (rightData.path) {
+                        const p = L.polyline(rightData.path, { color: colors[rightAlgo].primary, weight: 5, opacity: 0.85 }).addTo(osmMapRight);
+                        osmActivePathsRight.push(p);
+                    }
+                    // Write statistics
+                    document.getElementById('osm-stat-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('osm-stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
+                    document.getElementById('osm-stat-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('osm-stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
+
+                    document.getElementById('osm-res-dist-left').textContent = leftData.path ? `${(leftData.path_length_meters/1000.0).toFixed(3)} km` : 'Bloqué';
+                    document.getElementById('osm-res-dist-right').textContent = rightData.path ? `${(rightData.path_length_meters/1000.0).toFixed(3)} km` : 'Bloqué';
+                    document.getElementById('osm-res-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('osm-res-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('osm-res-nodes-left').textContent = leftData.nodes_explored_count;
+                    document.getElementById('osm-res-nodes-right').textContent = rightData.nodes_explored_count;
+
+                    stopAllAnimations();
                 }
             }, 1000 / speed);
-            
+
             animationIntervals.push(timer);
         }
 
-        function drawPaths(leftPath, rightPath, data) {
-            let pathSpeed = Math.max(5, Math.floor(100 / parseInt(speedSlider.value)));
-            const leftAlgo = leftAlgoSelect.value;
-            const rightAlgo = rightAlgoSelect.value;
+        // =================================================================
+        // ARENE ABSTRACT GRILLE (2D) - LOGIQUE
+        // =================================================================
+        function initGridArena() {
+            gridSize = parseInt(document.getElementById('grid-size-select').value);
+            gridObstacles.clear();
             
+            gridStartPos = [Math.floor(gridSize / 4), Math.floor(gridSize / 4)];
+            gridEndPos = [Math.floor(gridSize * 3 / 4), Math.floor(gridSize * 3 / 4)];
+
+            setupGridArenaElement(document.getElementById('grid-left-el'), 'left');
+            setupGridArenaElement(document.getElementById('grid-right-el'), 'right');
+            clearGridArenaPaths();
+            changeGridTheme('left');
+            changeGridTheme('right');
+        }
+
+        function setupGridArenaElement(el, side) {
+            el.innerHTML = '';
+            el.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+            el.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+            const cellWidth = Math.min(24, Math.floor(400 / gridSize));
+            el.style.width = `${cellWidth * gridSize}px`;
+            el.style.height = `${cellWidth * gridSize}px`;
+
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.dataset.side = side;
+
+                    // Click listeners for drawing walls
+                    cell.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        if (isAnimating) return;
+                        isGridMouseDown = true;
+                        handleGridCellInteract(r, c);
+                    });
+                    cell.addEventListener('mouseenter', () => {
+                        if (isGridMouseDown && !isAnimating) {
+                            handleGridCellInteract(r, c);
+                        }
+                    });
+                    window.addEventListener('mouseup', () => isGridMouseDown = false);
+
+                    updateGridCellVisual(cell, r, c);
+                    el.appendChild(cell);
+                }
+            }
+        }
+
+        function updateGridCellVisual(cell, r, c) {
+            cell.className = 'cell';
+            if (r === gridStartPos[0] && c === gridStartPos[1]) cell.classList.add('start');
+            else if (r === gridEndPos[0] && c === gridEndPos[1]) cell.classList.add('end');
+            else if (gridObstacles.has(`${r},${c}`)) cell.classList.add('obstacle');
+        }
+
+        function handleGridCellInteract(r, c) {
+            if ((r === gridStartPos[0] && c === gridStartPos[1]) || (r === gridEndPos[0] && c === gridEndPos[1])) return;
+            
+            const key = `${r},${c}`;
+            if (gridDrawMode === 'obstacle') {
+                gridObstacles.add(key);
+            } else {
+                gridObstacles.delete(key);
+            }
+
+            // Sync visual styles across both grids
+            const cells = document.querySelectorAll(`.cell[data-row="${r}"][data-col="${c}"]`);
+            cells.forEach(cell => updateGridCellVisual(cell, r, c));
+            clearGridArenaPaths();
+        }
+
+        function setGridDrawMode(mode) {
+            gridDrawMode = mode;
+            document.getElementById('btn-draw-wall').classList.toggle('active', mode === 'obstacle');
+            document.getElementById('btn-draw-erase').classList.toggle('active', mode === 'erase');
+        }
+
+        function changeGridTheme(side) {
+            const select = document.getElementById(`grid-${side}-select`);
+            const val = select.value;
+            select.className = `${val}-theme`;
+            if (side === 'left') gridLeftTheme = val;
+            else gridRightTheme = val;
+
+            const icon = document.getElementById(`grid-${side}-icon`);
+            icon.className = val === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' :
+                             (val === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
+            clearGridArenaPaths();
+        }
+
+        function clearGridArenaWalls() {
+            if (isAnimating) return;
+            gridObstacles.clear();
+            const cells = document.querySelectorAll('.grid .cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                updateGridCellVisual(cell, r, c);
+            });
+            clearGridArenaPaths();
+        }
+
+        function clearGridArenaPaths() {
+            const cells = document.querySelectorAll('.grid .cell');
+            cells.forEach(cell => {
+                cell.classList.remove('visited-left', 'path-left', 'visited-right', 'path-right');
+                cell.removeAttribute('style');
+            });
+            document.getElementById('grid-stat-time-left').textContent = '- ms';
+            document.getElementById('grid-stat-nodes-left').textContent = '- nœuds';
+            document.getElementById('grid-stat-time-right').textContent = '- ms';
+            document.getElementById('grid-stat-nodes-right').textContent = '- nœuds';
+
+            document.getElementById('grid-res-path-left').textContent = '-';
+            document.getElementById('grid-res-path-right').textContent = '-';
+            document.getElementById('grid-res-nodes-left').textContent = '-';
+            document.getElementById('grid-res-nodes-right').textContent = '-';
+            document.getElementById('grid-res-time-left').textContent = '- ms';
+            document.getElementById('grid-res-time-right').textContent = '- ms';
+        }
+
+        function generateRandomMaze() {
+            if (isAnimating) return;
+            gridObstacles.clear();
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if ((r === gridStartPos[0] && c === gridStartPos[1]) || (r === gridEndPos[0] && c === gridEndPos[1])) continue;
+                    // ~30% obstacle density
+                    if (Math.random() < 0.28) {
+                        gridObstacles.add(`${r},${c}`);
+                    }
+                }
+            }
+            const cells = document.querySelectorAll('.grid .cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                updateGridCellVisual(cell, r, c);
+            });
+            clearGridArenaPaths();
+        }
+
+        function generateAStarTrap() {
+            if (isAnimating) return;
+            gridObstacles.clear();
+            
+            // Build a wall trap block between start and end
+            // Start at [4,4], End at [15,15] for 20x20
+            const mid = Math.floor(gridSize / 2);
+            for (let c = 0; c < gridSize - 2; c++) {
+                gridObstacles.add(`${mid},${c}`);
+            }
+
+            const cells = document.querySelectorAll('.grid .cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                updateGridCellVisual(cell, r, c);
+            });
+            clearGridArenaPaths();
+        }
+
+        async function runGridArena() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearGridArenaPaths();
+
+            const btn = document.getElementById('btn-grid-run');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Résolution...`;
+            isAnimating = true;
+
+            const obsArray = Array.from(gridObstacles).map(str => str.split(',').map(Number));
+            const payload = {
+                rows: gridSize,
+                cols: gridSize,
+                start: gridStartPos,
+                end: gridEndPos,
+                obstacles: obsArray,
+                heuristic: document.getElementById('grid-heuristic-select').value
+            };
+
+            try {
+                const response = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error("HTTP error on API");
+                const data = await response.json();
+                
+                animateGridArenaResults(data);
+            } catch (err) {
+                alert("Erreur : " + err.message);
+                stopAllAnimations();
+            }
+        }
+
+        function animateGridArenaResults(data) {
+            const speed = parseInt(document.getElementById('grid-speed-slider').value);
+            
+            const leftData = data[gridLeftTheme];
+            const rightData = data[gridRightTheme];
+
+            const leftExplored = leftData.explored;
+            const rightExplored = rightData.explored;
+
             let lIdx = 0;
             let rIdx = 0;
-            
-            const drawTimer = setInterval(() => {
+
+            // CSS variable injection for customized theme colours in keyframes
+            const root = document.documentElement;
+            root.style.setProperty('--left-primary', colors[gridLeftTheme].primary);
+            root.style.setProperty('--left-visited-bg', colors[gridLeftTheme].visited);
+            root.style.setProperty('--right-primary', colors[gridRightTheme].primary);
+            root.style.setProperty('--right-visited-bg', colors[gridRightTheme].visited);
+
+            const timer = setInterval(() => {
                 let active = false;
-                
-                if (leftPath && lIdx < leftPath.length) {
-                    const [r, c] = leftPath[lIdx];
-                    if (!isStartOrEnd(r, c)) {
-                        const cell = document.querySelector(`#grid-dijkstra .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add(`path-${leftAlgo}`);
+
+                if (lIdx < leftExplored.length) {
+                    const pos = leftExplored[lIdx];
+                    const cell = document.querySelector(`#grid-left-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
+                    if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
+                        cell.classList.add('visited-left');
                     }
                     lIdx++;
                     active = true;
                 }
-                
-                if (rightPath && rIdx < rightPath.length) {
-                    const [r, c] = rightPath[rIdx];
-                    if (!isStartOrEnd(r, c)) {
-                        const cell = document.querySelector(`#grid-astar .cell[data-row="${r}"][data-col="${c}"]`);
-                        if (cell) cell.classList.add(`path-${rightAlgo}`);
+
+                if (rIdx < rightExplored.length) {
+                    const pos = rightExplored[rIdx];
+                    const cell = document.querySelector(`#grid-right-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
+                    if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
+                        cell.classList.add('visited-right');
                     }
                     rIdx++;
                     active = true;
                 }
-                
+
                 if (!active) {
-                    clearInterval(drawTimer);
-                    // Finalize stats displays
-                    displayFinalStats(data);
-                    stopAnimations();
+                    clearInterval(timer);
+                    // Draw final paths
+                    if (leftData.path) {
+                        leftData.path.forEach(pos => {
+                            const cell = document.querySelector(`#grid-left-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
+                            if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
+                                cell.classList.add('path-left');
+                            }
+                        });
+                    }
+                    if (rightData.path) {
+                        rightData.path.forEach(pos => {
+                            const cell = document.querySelector(`#grid-right-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
+                            if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
+                                cell.classList.add('path-right');
+                            }
+                        });
+                    }
+
+                    // Display stats
+                    document.getElementById('grid-stat-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('grid-stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
+                    document.getElementById('grid-stat-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('grid-stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
+
+                    document.getElementById('grid-res-path-left').textContent = leftData.path ? `${leftData.path.length} pas` : 'Bloqué';
+                    document.getElementById('grid-res-path-right').textContent = rightData.path ? `${rightData.path.length} pas` : 'Bloqué';
+                    document.getElementById('grid-res-nodes-left').textContent = leftData.nodes_explored_count;
+                    document.getElementById('grid-res-nodes-right').textContent = rightData.nodes_explored_count;
+                    document.getElementById('grid-res-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
+                    document.getElementById('grid-res-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
+
+                    stopAllAnimations();
                 }
-            }, pathSpeed * 20);
-            
-            animationIntervals.push(drawTimer);
+            }, 1000 / speed);
+
+            animationIntervals.push(timer);
         }
 
-        function isStartOrEnd(r, c) {
-            return (startPos[0] === r && startPos[1] === c) || (endPos[0] === r && endPos[1] === c);
+        // =================================================================
+        // SIMULATEUR MONTE CARLO (OSM) - LOGIQUE
+        // =================================================================
+        function initOSMInspectorMap() {
+            if (osmInspectorMap) return;
+
+            osmInspectorMap = L.map('mc-inspector-map', { doubleClickZoom: false }).setView([45.9227, 6.8685], 13);
+            const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+            L.tileLayer(tileUrl).addTo(osmInspectorMap);
         }
 
-        function displayFinalStats(data) {
-            const leftAlgo = leftAlgoSelect.value;
-            const rightAlgo = rightAlgoSelect.value;
-            
-            const leftData = data[leftAlgo];
-            const rightData = data[rightAlgo];
-            
-            // Update panel headers badges
-            document.getElementById('stat-time-left').textContent = `${leftData.duration_ms.toFixed(3)} ms`;
-            document.getElementById('stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
-            
-            document.getElementById('stat-time-right').textContent = `${rightData.duration_ms.toFixed(3)} ms`;
-            document.getElementById('stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
-            
-            // Update sidebar dashboard
-            const lLen = leftData.path ? leftData.path.length : 'Aucun';
-            const rLen = rightData.path ? rightData.path.length : 'Aucun';
-            
-            document.getElementById('path-len-left').textContent = lLen;
-            document.getElementById('path-len-right').textContent = rLen;
-            
-            document.getElementById('nodes-count-left').textContent = leftData.nodes_explored_count;
-            document.getElementById('nodes-count-right').textContent = rightData.nodes_explored_count;
-            
-            document.getElementById('time-val-left').textContent = `${leftData.duration_ms.toFixed(3)} ms`;
-            document.getElementById('time-val-right').textContent = `${rightData.duration_ms.toFixed(3)} ms`;
-            
-            // Render comparative analysis dynamically based on selection
-            const leftName = leftAlgoSelect.options[leftAlgoSelect.selectedIndex].text.split(' ')[0];
-            const rightName = rightAlgoSelect.options[rightAlgoSelect.selectedIndex].text.split(' ')[0];
-            
-            const nodeDiff = leftData.nodes_explored_count - rightData.nodes_explored_count;
-            
-            // Check if one path is suboptimal
-            const isLeftSuboptimal = leftData.path && rightData.path && (leftData.path.length > rightData.path.length);
-            const isRightSuboptimal = leftData.path && rightData.path && (rightData.path.length > leftData.path.length);
-            
-            let summaryHTML = '';
-            
-            if (!leftData.path || !rightData.path) {
-                summaryHTML = `
-                    <div class="summary-badge btn-danger" style="background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 8px;">
-                        <strong>Chemin non trouvé !</strong> Au moins un des algorithmes n'a pas pu atteindre la cible.
-                    </div>
-                `;
-            } else if (isLeftSuboptimal || isRightSuboptimal) {
-                const subAlgo = isLeftSuboptimal ? leftName : rightName;
-                const optAlgo = isLeftSuboptimal ? rightName : leftName;
-                const subLen = isLeftSuboptimal ? leftData.path.length : rightData.path.length;
-                const optLen = isLeftSuboptimal ? rightData.path.length : leftData.path.length;
-                
-                summaryHTML = `
-                    <div class="summary-badge" style="background: rgba(243, 156, 18, 0.15); border: 1px solid rgba(243, 156, 18, 0.3); color: #f39c12;">
-                        <i class="fa-solid fa-triangle-exclamation"></i> <strong>Sous-optimalité détectée !</strong><br>
-                        Le chemin de <strong>${subAlgo}</strong> est de <strong>${subLen} cases</strong>, alors que <strong>${optAlgo}</strong> a trouvé un chemin plus court de <strong>${optLen} cases</strong>.
-                    </div>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem;">
-                        <strong>Pourquoi ?</strong> DFS (Profondeur) ou A* avec une heuristique inadmissible ne garantissent pas l'optimalité du chemin. Ils s'arrêtent dès qu'ils touchent au but, même si le chemin parcouru est long et tortueux.
-                    </p>
-                `;
-            } else if (nodeDiff !== 0) {
-                const winner = nodeDiff > 0 ? rightName : leftName;
-                const loser = nodeDiff > 0 ? leftName : rightName;
-                const absoluteDiff = Math.abs(nodeDiff);
-                const winData = nodeDiff > 0 ? rightData : leftData;
-                const loseData = nodeDiff > 0 ? leftData : rightData;
-                const pct = ((absoluteDiff / loseData.nodes_explored_count) * 100).toFixed(1);
-                
-                const themeColor = winner.startsWith('A*') ? 'var(--astar-primary)' : (winner.startsWith('DFS') ? 'var(--dfs-primary)' : 'var(--dijkstra-primary)');
-                const themeBackground = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.1)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.1)' : 'rgba(0, 243, 255, 0.1)');
-                const themeBorder = winner.startsWith('A*') ? 'rgba(236, 72, 153, 0.2)' : (winner.startsWith('DFS') ? 'rgba(241, 196, 15, 0.2)' : 'rgba(0, 243, 255, 0.2)');
-                
-                summaryHTML = `
-                    <div class="summary-badge" style="background: ${themeBackground}; border: 1px solid ${themeBorder}; color: ${themeColor};">
-                        <i class="fa-solid fa-trophy"></i> <strong>${winner} est plus efficace !</strong><br>
-                        Il a exploré <strong style="text-shadow: 0 0 5px ${themeColor};">${absoluteDiff} nœuds de moins</strong> que ${loser} (soit une réduction de <strong>${pct}%</strong>).<br><br>
-                        Temps de calcul : <strong>${winData.duration_ms.toFixed(3)} ms</strong> contre <strong>${loseData.duration_ms.toFixed(3)} ms</strong>.
-                    </div>
-                `;
-            } else {
-                summaryHTML = `
-                    <div class="summary-badge summary-badge-success">
-                        <i class="fa-solid fa-circle-check"></i> <strong>Équivalence parfaite !</strong><br>
-                        Les deux algorithmes ont exploré exactement le même nombre de nœuds (<strong>${leftData.nodes_explored_count} nœuds</strong>).<br><br>
-                        Calcul à gauche en <strong>${leftData.duration_ms.toFixed(3)} ms</strong> et à droite en <strong>${rightData.duration_ms.toFixed(3)} ms</strong>.
-                    </div>
-                `;
+        async function runOSMMonteCarlo() {
+            // Get inputs
+            const trials = parseInt(document.getElementById('mc-osm-trials').value) || 50;
+            const traffic = document.getElementById('mc-osm-traffic').value;
+            const closure = parseFloat(document.getElementById('mc-osm-closure').value);
+
+            // Overlay display
+            const overlay = document.getElementById('sim-overlay');
+            const overlayTitle = document.getElementById('sim-overlay-title');
+            const overlayBar = document.getElementById('sim-overlay-bar');
+            const overlayDetail = document.getElementById('sim-overlay-detail');
+
+            overlay.classList.add('active');
+            overlayBar.style.width = '10%';
+            overlayTitle.textContent = "INITIALISATION DE LA SIMULATION...";
+            overlayDetail.textContent = "Modélisation du réseau routier et des distributions de trafic...";
+
+            // Extract drawing obstacles from OSM Arena map
+            const staticObstacles = [];
+            if (osmDrawnItems) {
+                osmDrawnItems.eachLayer((layer) => {
+                    const coords = [];
+                    const latlngs = layer.getLatLngs()[0];
+                    latlngs.forEach(ll => coords.push([ll.lat, ll.lng]));
+                    staticObstacles.push(coords);
+                });
             }
-            
-            document.getElementById('summary-container').innerHTML = summaryHTML;
+
+            const payload = {
+                start: startLatLng,
+                end: endLatLng,
+                obstacles: staticObstacles,
+                trials: trials,
+                traffic_level: traffic,
+                closure_prob: closure
+            };
+
+            setTimeout(async () => {
+                try {
+                    overlayBar.style.width = '30%';
+                    overlayTitle.textContent = "EXÉCUTION DES ESSAIS MONTE CARLO...";
+                    overlayDetail.textContent = `Calcul en Python de ${trials} trajectoires pour chaque modèle...`;
+
+                    const response = await fetch('/api/monte_carlo_osm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || "Une erreur est survenue lors de la simulation.");
+                    }
+                    
+                    overlayBar.style.width = '80%';
+                    overlayTitle.textContent = "AGRÉGATION ET PRODUCTION DES STATISTIQUES...";
+                    overlayDetail.textContent = "Tracé des distributions et des courbes de convergence...";
+
+                    const data = await response.json();
+                    osmMCDataCache = data;
+
+                    // Update UI stats
+                    updateOSMMCStatsTable(data);
+                    buildOSMMCCharts(data);
+                    populateOSMInspectorDropdown(data);
+                    
+                    overlayBar.style.width = '100%';
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 200);
+
+                } catch (err) {
+                    overlay.classList.remove('active');
+                    alert("Erreur : " + err.message);
+                }
+            }, 300);
         }
 
-        // --- Event Listeners ---
-        window.addEventListener('mouseup', () => {
-            isMouseDown = false;
+        function updateOSMMCStatsTable(data) {
+            document.getElementById('mc-osm-tot-trials').textContent = data.trials.length;
+            const body = document.getElementById('mc-osm-stats-body');
+            body.innerHTML = '';
+
+            const mNames = {
+                dijkstra: { label: 'Dijkstra (Dynamique)', color: colors.dijkstra.primary, icon: 'fa-compass' },
+                astar: { label: 'A* (Dynamique)', color: colors.astar.primary, icon: 'fa-bullseye' },
+                static: { label: 'Routeur Statique', color: colors.static.primary, icon: 'fa-arrow-trend-up' }
+            };
+
+            for (const key of ['dijkstra', 'astar', 'static']) {
+                const s = data.stats[key];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="model-cell" style="color: ${mNames[key].color}">
+                        <i class="fa-solid ${mNames[key].icon}"></i> ${mNames[key].label}
+                    </td>
+                    <td class="${s.success_rate_pct > 95 ? 'text-success' : (s.success_rate_pct > 70 ? 'text-warning' : 'text-error')}">${s.success_rate_pct}%</td>
+                    <td>${s.success_rate_pct > 0 ? (s.mean_travel_time_sec/60.0).toFixed(2) + ' min' : 'N/A'}</td>
+                    <td>${s.success_rate_pct > 0 ? s.std_travel_time_sec.toFixed(1) + ' sec' : 'N/A'}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted);">${s.success_rate_pct > 0 ? `[${(s.ci_95_sec[0]/60.0).toFixed(2)}, ${(s.ci_95_sec[1]/60.0).toFixed(2)}] min` : 'N/A'}</td>
+                    <td>${s.success_rate_pct > 0 ? (s.p90_travel_time_sec/60.0).toFixed(2) + ' min' : 'N/A'}</td>
+                    <td class="${s.mean_optimality_gap_pct == 0.0 ? 'text-success' : 'text-warning'}" style="font-weight: 700;">${s.mean_optimality_gap_pct}%</td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted);">${s.mean_computation_ms.toFixed(2)} ms</td>
+                    <td>${s.mean_nodes_explored}</td>
+                `;
+                body.appendChild(tr);
+            }
+        }
+
+        function buildOSMMCCharts(data) {
+            // Destroy existing charts to prevent hover bugs
+            if (charts.osmHist) charts.osmHist.destroy();
+            if (charts.osmConv) charts.osmConv.destroy();
+
+            const trials = data.trials;
+
+            // --- CHART 1: HISTOGRAM OF TRAVEL TIMES ---
+            // Extract successful travel times for Dijkstra and Static
+            const dTimes = trials.filter(r => r.dijkstra.success).map(r => r.dijkstra.travel_time_sec / 60.0);
+            const sTimes = trials.filter(r => r.static.success).map(r => r.static.travel_time_sec / 60.0);
+
+            // Generate bins
+            const allTimes = [...dTimes, ...sTimes];
+            const minT = Math.min(...allTimes);
+            const maxT = Math.max(...allTimes);
+            const binCount = 12;
+            const binWidth = (maxT - minT) / binCount;
+            
+            const bins = [];
+            const dCounts = new Array(binCount).fill(0);
+            const sCounts = new Array(binCount).fill(0);
+
+            for (let i = 0; i < binCount; i++) {
+                const lower = minT + i * binWidth;
+                const upper = lower + binWidth;
+                bins.push(`${lower.toFixed(1)}-${upper.toFixed(1)}m`);
+            }
+
+            dTimes.forEach(t => {
+                let idx = Math.floor((t - minT) / binWidth);
+                if (idx >= binCount) idx = binCount - 1;
+                if (idx >= 0) dCounts[idx]++;
+            });
+
+            sTimes.forEach(t => {
+                let idx = Math.floor((t - minT) / binWidth);
+                if (idx >= binCount) idx = binCount - 1;
+                if (idx >= 0) sCounts[idx]++;
+            });
+
+            const ctxHist = document.getElementById('chart-osm-histogram').getContext('2d');
+            charts.osmHist = new Chart(ctxHist, {
+                type: 'bar',
+                data: {
+                    labels: bins,
+                    datasets: [
+                        { label: 'Dijkstra (Dynamique)', data: dCounts, backgroundColor: 'rgba(0, 243, 255, 0.45)', borderColor: '#00f3ff', borderWidth: 1 },
+                        { label: 'Routeur Statique', data: sCounts, backgroundColor: 'rgba(59, 130, 246, 0.45)', borderColor: '#3b82f6', borderWidth: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 9 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }
+                    },
+                    plugins: { legend: { labels: { color: '#f3f4f6' } } }
+                }
+            });
+
+            // --- CHART 2: CONVERGENCE OF THE RUNNING MEAN ---
+            const dRunningSum = [];
+            const sRunningSum = [];
+            const xLabels = [];
+
+            let dCount = 0, dSum = 0;
+            let sCount = 0, sSum = 0;
+
+            for (let i = 0; i < trials.length; i++) {
+                xLabels.push(i + 1);
+                
+                const dSuccess = trials[i].dijkstra.success;
+                const sSuccess = trials[i].static.success;
+
+                if (dSuccess) {
+                    dCount++;
+                    dSum += trials[i].dijkstra.travel_time_sec / 60.0;
+                }
+                if (sSuccess) {
+                    sCount++;
+                    sSum += trials[i].static.travel_time_sec / 60.0;
+                }
+
+                dRunningSum.push(dCount > 0 ? dSum / dCount : null);
+                sRunningSum.push(sCount > 0 ? sSum / sCount : null);
+            }
+
+            const ctxConv = document.getElementById('chart-osm-convergence').getContext('2d');
+            charts.osmConv = new Chart(ctxConv, {
+                type: 'line',
+                data: {
+                    labels: xLabels,
+                    datasets: [
+                        { label: 'Dijkstra Dynamique', data: dRunningSum, borderColor: '#00f3ff', borderWidth: 2, fill: false, pointRadius: 0 },
+                        { label: 'Routeur Statique', data: sRunningSum, borderColor: '#3b82f6', borderWidth: 2, fill: false, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#9ca3af', font: { size: 9 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }
+                    },
+                    plugins: { legend: { labels: { color: '#f3f4f6' } } }
+                }
+            });
+        }
+
+        function populateOSMInspectorDropdown(data) {
+            const select = document.getElementById('inspector-trial-select');
+            select.innerHTML = '<option value="">-- Choisir un essai --</option>';
+            select.disabled = false;
+
+            // Populate the dropdown with metadata for each trial
+            data.trials.forEach(r => {
+                const dState = r.dijkstra.success ? `${(r.dijkstra.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
+                const sState = r.static.success ? `${(r.static.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
+                
+                // Highlight trials where static router performed significantly worse or got blocked
+                let label = `Essai #${r.trial} - [Dyn: ${dState} / Stat: ${sState}]`;
+                if (!r.dijkstra.success) {
+                    label += ' ⚠️ Réseau Déconnecté';
+                } else if (r.static.success && r.static.optimality_gap_pct > 15.0) {
+                    label += ` ⚡ Gap Statique (+${r.static.optimality_gap_pct.toFixed(0)}%)`;
+                } else if (r.dijkstra.success && !r.static.success) {
+                    label += ' 🚫 Routeur Statique Bloqué';
+                }
+
+                const opt = document.createElement('option');
+                opt.value = r.trial;
+                opt.textContent = label;
+                select.appendChild(opt);
+            });
+
+            // Automatically load and inspect trial 1 on the map
+            select.value = "1";
+            inspectOSMTrial(1);
+        }
+
+        function inspectOSMTrial(trialNum) {
+            if (!osmMCDataCache || !trialNum) return;
+
+            const trial = osmMCDataCache.trials.find(r => r.trial === parseInt(trialNum));
+            if (!trial) return;
+
+            // Clear previous layers
+            osmInspectorLayers.forEach(l => osmInspectorMap.removeLayer(l));
+            osmInspectorLayers = [];
+            if (osmInspectorStartMarker) osmInspectorMap.removeLayer(osmInspectorStartMarker);
+            if (osmInspectorEndMarker) osmInspectorMap.removeLayer(osmInspectorEndMarker);
+
+            // Snapped nodes markers
+            const startLoc = osmMCDataCache.meta.start_node_coords;
+            const endLoc = osmMCDataCache.meta.end_node_coords;
+
+            const startIcon = L.divIcon({ className: 'marker-label', html: '<i class="fa-solid fa-location-dot" style="color:#10b981;"></i> DÉPART', iconSize: [60, 20], iconAnchor: [30, 20] });
+            const endIcon = L.divIcon({ className: 'marker-label', html: '<i class="fa-solid fa-flag" style="color:#ef4444;"></i> ARRIVÉE', iconSize: [65, 20], iconAnchor: [32, 20] });
+
+            osmInspectorStartMarker = L.marker(startLoc, { icon: startIcon }).addTo(osmInspectorMap);
+            osmInspectorEndMarker = L.marker(endLoc, { icon: endIcon }).addTo(osmInspectorMap);
+
+            // Draw Paths (Static expected vs realized, Dijkstra dynamic)
+            // 1. Static router path (with local detours)
+            if (trial.static.success && trial.static.path_geom) {
+                const poly = L.polyline(trial.static.path_geom, {
+                    color: colors.static.primary, weight: 6, opacity: 0.9, dashArray: '2, 8'
+                }).addTo(osmInspectorMap);
+                osmInspectorLayers.push(poly);
+            }
+
+            // 2. Dijkstra dynamic path (theoretical optimum for this realization)
+            if (trial.dijkstra.success && trial.dijkstra.path_geom) {
+                const poly = L.polyline(trial.dijkstra.path_geom, {
+                    color: colors.dijkstra.primary, weight: 4, opacity: 0.85
+                }).addTo(osmInspectorMap);
+                osmInspectorLayers.push(poly);
+            }
+
+            // Zoom map to path bounds
+            if (trial.dijkstra.success && trial.dijkstra.path_geom && trial.dijkstra.path_geom.length > 0) {
+                osmInspectorMap.fitBounds(L.polyline(trial.dijkstra.path_geom).getBounds(), { padding: [20, 20] });
+            } else {
+                osmInspectorMap.setView(startLoc, 13);
+            }
+
+            // Update details texts
+            const detailsDiv = document.getElementById('inspector-trial-details');
+            
+            const gapText = trial.static.success && trial.static.optimality_gap_pct !== null
+                ? `<span style="font-weight:700;" class="${trial.static.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.static.optimality_gap_pct.toFixed(1)}%</span>`
+                : 'N/A (Bloqué)';
+
+            detailsDiv.innerHTML = `
+                <div><strong>Dyn. Dijkstra</strong>: ${trial.dijkstra.success ? (trial.dijkstra.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
+                <div><strong>Dyn. A*</strong>: ${trial.astar.success ? (trial.astar.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
+                <div><strong>Routage Statique</strong>: ${trial.static.success ? (trial.static.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué (Isolé)</span>'}</div>
+                <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
+                    <strong>Surcoût Statique (Gap)</strong> : ${gapText}
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3;">
+                    Le tracé <span style="color: ${colors.static.primary}; font-weight:700">bleu pointillé</span> montre le parcours emprunté par le Routeur Statique. Le tracé <span style="color: ${colors.dijkstra.primary}; font-weight:700">cyan</span> montre l'itinéraire optimal recalculé par Dijkstra.
+                </div>
+            `;
+        }
+
+        // =================================================================
+        // SIMULATEUR MONTE CARLO (GRILLE) - LOGIQUE
+        // =================================================================
+        async function runGridMonteCarlo() {
+            const size = parseInt(document.getElementById('mc-grid-size').value);
+            const trials = parseInt(document.getElementById('mc-grid-trials').value) || 100;
+            const prob = parseFloat(document.getElementById('mc-grid-obstacle-prob').value);
+
+            // Display loading overlay
+            const overlay = document.getElementById('sim-overlay');
+            const overlayTitle = document.getElementById('sim-overlay-title');
+            const overlayBar = document.getElementById('sim-overlay-bar');
+            const overlayDetail = document.getElementById('sim-overlay-detail');
+
+            overlay.classList.add('active');
+            overlayBar.style.width = '20%';
+            overlayTitle.textContent = "INITIALISATION DE LA PERCOLATION...";
+            overlayDetail.textContent = `Génération de ${trials} grilles de taille ${size}x${size}...`;
+
+            // Setup temporary grid coordinate boundaries
+            const start = [0, 0];
+            const end = [size - 1, size - 1];
+
+            const payload = {
+                rows: size,
+                cols: size,
+                start: start,
+                end: end,
+                obstacles: [], // no permanent obstacles in this mode, all random
+                trials: trials,
+                random_obstacle_prob: prob
+            };
+
+            setTimeout(async () => {
+                try {
+                    overlayBar.style.width = '60%';
+                    overlayTitle.textContent = "RESOLUTION SUR GRILLES ALEATOIRES...";
+                    overlayDetail.textContent = "Calcul des chemins Dijkstra et A* (Manhattan)...";
+
+                    const response = await fetch('/api/monte_carlo_grid', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("HTTP error on Grid Monte Carlo API");
+                    const data = await response.json();
+
+                    gridMCDataCache = data;
+                    gridMCSizeCache = size;
+                    gridMCStartCache = start;
+                    gridMCEndCache = end;
+
+                    overlayBar.style.width = '90%';
+                    overlayTitle.textContent = "TRACÉ DES RENDEMENTS ALGORITHMIQUES...";
+                    overlayDetail.textContent = "Comparaison de la complexité (nœuds explorés)...";
+
+                    // Update UI stats
+                    updateGridMCStatsTable(data);
+                    buildGridMCCharts(data);
+                    populateGridMCInspectorDropdown(data);
+
+                    overlayBar.style.width = '100%';
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 200);
+
+                } catch (err) {
+                    overlay.classList.remove('active');
+                    alert("Erreur : " + err.message);
+                }
+            }, 300);
+        }
+
+        function updateGridMCStatsTable(data) {
+            const body = document.getElementById('mc-grid-stats-body');
+            body.innerHTML = '';
+
+            const mNames = {
+                dijkstra: { label: 'Dijkstra (Optimum)', color: colors.dijkstra.primary },
+                astar: { label: 'A* (Manhattan)', color: colors.astar.primary }
+            };
+
+            for (const key of ['dijkstra', 'astar']) {
+                const s = data.stats[key];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="model-cell" style="color: ${mNames[key].color}">
+                        ${mNames[key].label}
+                    </td>
+                    <td class="${s.success_rate_pct > 80 ? 'text-success' : (s.success_rate_pct > 30 ? 'text-warning' : 'text-error')}" style="font-weight:700;">${s.success_rate_pct}%</td>
+                    <td>${s.success_rate_pct > 0 ? s.mean_path_length.toFixed(1) + ' pas' : 'N/A'}</td>
+                    <td>${s.success_rate_pct > 0 ? s.std_path_length.toFixed(1) + ' pas' : 'N/A'}</td>
+                    <td>${s.mean_nodes_explored}</td>
+                    <td>${s.mean_computation_ms.toFixed(3)} ms</td>
+                `;
+                body.appendChild(tr);
+            }
+        }
+
+        function buildGridMCCharts(data) {
+            if (charts.gridNodes) charts.gridNodes.destroy();
+            if (charts.gridComp) charts.gridComp.destroy();
+
+            // Algorithmic search efficiency comparison (Dijkstra vs A*)
+            const ctxNodes = document.getElementById('chart-grid-nodes').getContext('2d');
+            charts.gridNodes = new Chart(ctxNodes, {
+                type: 'bar',
+                data: {
+                    labels: ['Dijkstra', 'A* (Manhattan)'],
+                    datasets: [{
+                        label: 'Intersections visitées (Moyenne)',
+                        data: [data.stats.dijkstra.mean_nodes_explored, data.stats.astar.mean_nodes_explored],
+                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)'],
+                        borderColor: ['#00f3ff', '#ec4899'],
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        x: { ticks: { color: '#9ca3af' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Computation time comparison
+            const ctxComp = document.getElementById('chart-grid-comp').getContext('2d');
+            charts.gridComp = new Chart(ctxComp, {
+                type: 'bar',
+                data: {
+                    labels: ['Dijkstra', 'A* (Manhattan)'],
+                    datasets: [{
+                        label: 'Temps d\'exécution (ms)',
+                        data: [data.stats.dijkstra.mean_computation_ms, data.stats.astar.mean_computation_ms],
+                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)'],
+                        borderColor: ['#00f3ff', '#ec4899'],
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        x: { ticks: { color: '#9ca3af' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function populateGridMCInspectorDropdown(data) {
+            const select = document.getElementById('inspector-grid-trial-select');
+            select.innerHTML = '<option value="">-- Choisir un essai --</option>';
+            select.disabled = false;
+
+            data.trials.forEach(r => {
+                let label = `Essai #${r.trial} - `;
+                if (r.dijkstra.success) {
+                    label += `Succès (longueur: ${r.dijkstra.path_length})`;
+                } else {
+                    label += '🚫 Pas de chemin (Percolé)';
+                }
+                const opt = document.createElement('option');
+                opt.value = r.trial;
+                opt.textContent = label;
+                select.appendChild(opt);
+            });
+
+            select.value = "1";
+            inspectGridTrial(1);
+        }
+
+        function inspectGridTrial(trialNum) {
+            if (!gridMCDataCache || !trialNum) return;
+
+            const trial = gridMCDataCache.trials.find(r => r.trial === parseInt(trialNum));
+            if (!trial) return;
+
+            const gridInspectorEl = document.getElementById('mc-grid-inspector-el');
+            gridInspectorEl.innerHTML = '';
+            
+            // Re-render grid layout
+            gridInspectorEl.style.gridTemplateRows = `repeat(${gridMCSizeCache}, 1fr)`;
+            gridInspectorEl.style.gridTemplateColumns = `repeat(${gridMCSizeCache}, 1fr)`;
+
+            const cellWidth = Math.min(20, Math.floor(300 / gridMCSizeCache));
+            gridInspectorEl.style.width = `${cellWidth * gridMCSizeCache}px`;
+            gridInspectorEl.style.height = `${cellWidth * gridMCSizeCache}px`;
+
+            // Convert random obstacles to lookup set
+            const obsSet = new Set(trial.obstacles.map(o => `${o[0]},${o[1]}`));
+
+            // Convert path list to lookup set
+            const pathSet = new Set(trial.dijkstra.success ? trial.dijkstra.path.map(p => `${p[0]},${p[1]}`) : []);
+
+            for (let r = 0; r < gridMCSizeCache; r++) {
+                for (let c = 0; c < gridMCSizeCache; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    if (r === gridMCStartCache[0] && c === gridMCStartCache[1]) cell.classList.add('start');
+                    else if (r === gridMCEndCache[0] && c === gridMCEndCache[1]) cell.classList.add('end');
+                    else if (obsSet.has(`${r},${c}`)) cell.classList.add('obstacle');
+                    else if (pathSet.has(`${r},${c}`)) {
+                        cell.style.backgroundColor = colors.dijkstra.primary;
+                        cell.style.boxShadow = `0 0 5px ${colors.dijkstra.primary}`;
+                    }
+
+                    gridInspectorEl.appendChild(cell);
+                }
+            }
+
+            // Update details
+            const det = document.getElementById('inspector-grid-trial-details');
+            det.innerHTML = `
+                <div><strong>Dijkstra</strong> : ${trial.dijkstra.success ? trial.dijkstra.path_length + ' pas' : '<span class="text-error">Échec</span>'}</div>
+                <div><strong>A* (Manhattan)</strong> : ${trial.astar.success ? trial.astar.path_length + ' pas' : '<span class="text-error">Échec</span>'}</div>
+                <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:0.5rem; margin-top:0.25rem;">
+                    <strong>Explorés (Dijkstra)</strong> : ${trial.dijkstra.nodes_explored} <br>
+                    <strong>Explorés (A*)</strong> : ${trial.astar.nodes_explored}
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.3; margin-top:0.5rem;">
+                    Le tracé <span style="color:${colors.dijkstra.primary}; font-weight:700">cyan</span> montre le chemin le plus court calculé. Les blocs sombres représentent les obstacles générés aléatoirement.
+                </div>
+            `;
+        }
+
+        // --- Window Initialisation ---
+        window.addEventListener('load', () => {
+            initOSMArena();
+            setTimeout(() => {
+                if (osmMapLeft) osmMapLeft.invalidateSize();
+                if (osmMapRight) osmMapRight.invalidateSize();
+            }, 200);
         });
 
-        gridSizeSelect.addEventListener('change', (e) => {
-            rows = parseInt(e.target.value);
-            cols = parseInt(e.target.value);
-            initGrids();
+        window.addEventListener('resize', () => {
+            if (osmMapLeft) osmMapLeft.invalidateSize();
+            if (osmMapRight) osmMapRight.invalidateSize();
+            if (osmInspectorMap) osmInspectorMap.invalidateSize();
         });
-
-        heuristicSelect.addEventListener('change', (e) => {
-            resetStats();
-        });
-
-        leftAlgoSelect.addEventListener('change', () => {
-            updateAlgoPanelThemes();
-            resetStats();
-            clearPathColors();
-        });
-
-        rightAlgoSelect.addEventListener('change', () => {
-            updateAlgoPanelThemes();
-            resetStats();
-            clearPathColors();
-        });
-
-        btnSetStart.addEventListener('click', () => {
-            if (isAnimating) return;
-            drawMode = 'start';
-            btnSetStart.classList.add('active');
-            btnSetEnd.classList.remove('active');
-        });
-
-        btnSetEnd.addEventListener('click', () => {
-            if (isAnimating) return;
-            drawMode = 'end';
-            btnSetEnd.classList.add('active');
-            btnSetStart.classList.remove('active');
-        });
-
-        btnGenerateMaze.addEventListener('click', generateRandomMaze);
-        btnAStarTrap.addEventListener('click', generateAStarTrap);
-        btnClearWalls.addEventListener('click', clearWalls);
-        
-        btnClearPath.addEventListener('click', () => {
-            if (isAnimating) return;
-            stopAnimations();
-            clearPathColors();
-            resetStats();
-        });
-
-        btnRun.addEventListener('click', runComparison);
-
-        // Prevent dragging page images/elements
-        window.addEventListener('dragstart', (e) => e.preventDefault());
-
-        // Initialize on load
-        initGrids();
     </script>
 </body>
 </html>
