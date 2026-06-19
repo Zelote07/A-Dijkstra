@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scénarios Applicatifs - Dijkstra vs A*</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #08090f;
+            --panel-bg: rgba(18, 20, 32, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            
+            --dijkstra-primary: #00f3ff;
+            --dijkstra-secondary: rgba(0, 243, 255, 0.15);
+            --dijkstra-visited: rgba(0, 243, 255, 0.35);
+            
+            --astar-primary: #ec4899;
+            --astar-secondary: rgba(236, 72, 153, 0.15);
+            --astar-visited: rgba(236, 72, 153, 0.35);
+            
+            --static-primary: #3b82f6;
+            --static-secondary: rgba(59, 130, 246, 0.15);
+            
+            --dfs-primary: #a855f7;
+            --dfs-secondary: rgba(168, 85, 247, 0.15);
+            --dfs-visited: rgba(168, 85, 247, 0.35);
+            
+            --start-color: #10b981;
+            --end-color: #ef4444;
+            --poi-color: #f1c40f;
+            
+            --glow-shadow: 0 0 15px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--dijkstra-primary), var(--static-primary), var(--astar-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            padding: 0.35rem;
+            border-radius: 12px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            padding: 1.5rem 2rem;
+            gap: 1.5rem;
+            min-height: 0;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .simulation-container {
+            display: flex;
+            flex: 1;
+            gap: 1.5rem;
+            width: 100%;
+            min-height: 0;
+        }
+
+        .sidebar {
+            width: 380px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            overflow-y: auto;
+            max-height: calc(100vh - 130px);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-height: 0;
+        }
+
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: var(--static-primary);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="number"], input[type="range"] {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        select:hover, input[type="number"]:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-outline-cyan {
+            border-color: var(--dijkstra-primary);
+            color: var(--dijkstra-primary);
+        }
+        .btn-outline-cyan:hover:not(:disabled) {
+            background: rgba(0, 243, 255, 0.1);
+        }
+
+        .educational-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .educational-card h4 {
+            color: var(--static-primary);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .educational-card .badge {
+            align-self: flex-start;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-dijkstra {
+            background: rgba(0, 243, 255, 0.15);
+            color: var(--dijkstra-primary);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+        }
+
+        .badge-astar {
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--astar-primary);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .badge-dfs {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--dfs-primary);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .map-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            flex: 1;
+            min-height: 0;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.4rem;
+        }
+
+        .map-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .map-wrapper {
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            min-height: 380px;
+        }
+
+        .leaflet-map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #16181f;
+        }
+
+        .stats-badge-container {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .stats-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stats-badge span {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .info-card {
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #93c5fd;
+        }
+
+        .alert-card {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #fca5a5;
+        }
+
+        .success-card {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #a7f3d0;
+        }
+
+        .stats-table-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.8rem;
+        }
+
+        .stats-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+            padding: 0.5rem 0.6rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .stats-table td {
+            padding: 0.6rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-weight: 500;
+        }
+
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* SVG Profile Styling */
+        .profile-container {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .profile-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .profile-svg-wrapper {
+            width: 100%;
+            height: 160px;
+            position: relative;
+        }
+
+        #elevation-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Legend Custom */
+        .legend-row {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            align-items: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .legend-color {
+            width: 12px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .sim-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 9, 15, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sim-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #fff;
+            border-bottom-color: var(--static-primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 0.8rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--panel-border);
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        /* Marker formatting */
+        .marker-label {
+            background-color: rgba(8,9,15,0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+
+        .leaflet-bar a {
+            background-color: #121420 !important;
+            color: var(--text-main) !important;
+            border-bottom: 1px solid var(--panel-border) !important;
+        }
+        .leaflet-bar a:hover {
+            background-color: #1e293b !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1><i class="fa-solid fa-graduation-cap"></i> Scénarios d'Application Réels</h1>
+            <div class="subtitle">Démonstration des contraintes métiers où Dijkstra surpasse A*</div>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-isochrone')"><i class="fa-solid fa-clock-rotate-left"></i> Isochrones (Accessibilité)</button>
+            <button class="tab-btn" onclick="switchTab('tab-poi')"><i class="fa-solid fa-location-crosshairs"></i> Recherche Multi-Cibles</button>
+            <button class="tab-btn" onclick="switchTab('tab-eco')"><i class="fa-solid fa-leaf"></i> Routage Éco-Énergétique</button>
+            <button class="tab-btn" onclick="switchTab('tab-dfs')"><i class="fa-solid fa-network-wired"></i> Connectivité (DFS)</button>
+        </div>
+        <div>
+            <a href="/" class="btn"><i class="fa-solid fa-arrow-left"></i> Retour au Simulateur</a>
+        </div>
+    </header>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: ISOCHRONES (CARTOGRAPHIE D'ACCESSIBILITE) -->
+    <!-- ================================================================= -->
+    <div id="tab-isochrone" class="tab-content active">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-clock"></i> Cartographie d'Accessibilité</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    Double-cliquez sur la carte pour déplacer le <strong>Départ</strong>. L'algorithme calculera tous les segments routiers atteignables dans le temps imparti.
+                </p>
+
+                <div class="form-group">
+                    <label for="iso-time-slider">Temps de trajet max (Minutes) : <span id="iso-time-val" style="color: var(--dijkstra-primary); font-weight: bold;">15</span></label>
+                    <input type="range" id="iso-time-slider" min="2" max="25" value="15" step="1" oninput="document.getElementById('iso-time-val').textContent = this.value">
+                </div>
+
+                <button class="btn btn-primary" onclick="runIsochrone()"><i class="fa-solid fa-play"></i> Calculer la zone d'accès</button>
+                <button class="btn" onclick="clearIsochrone()"><i class="fa-solid fa-eraser"></i> Effacer</button>
+
+                <div class="educational-card">
+                    <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
+                    <h4>Le Besoin Métier</h4>
+                    <p>En logistique ou services d'urgence, on cherche à cartographier une zone globale d'action (les clients livrables en moins de 15 min, ou le périmètre d'action d'une ambulance).</p>
+                    
+                    <h4>Pourquoi A* échoue ?</h4>
+                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> <strong>Paralysie totale.</strong> A* a besoin d'une cible unique précise (Point B) pour calculer son heuristique spatiale. Sans Point B, A* est incapable de calculer une direction et ne peut pas fonctionner.</p>
+                    
+                    <h4>Le Pouvoir de Dijkstra</h4>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Exploration radiale uniforme.</strong> Dijkstra avance par ondes régulières sans viser de cible. En arrêtant Dijkstra dès que le coût dépasse 15 min, il inonde naturellement le réseau routier et s'arrête pile à la frontière temporelle.</p>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="map-panel">
+                    <div class="map-header">
+                        <div class="map-title"><i class="fa-solid fa-compass dijkstra-theme" style="color: var(--dijkstra-primary);"></i> Isochrone d'Accessibilité</div>
+                        <div class="stats-badge-container">
+                            <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="iso-stat-nodes">- nœuds atteints</span></div>
+                            <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="iso-stat-time">- ms</span></div>
+                        </div>
+                    </div>
+                    <div class="map-wrapper">
+                        <div id="map-isochrone" class="leaflet-map"></div>
+                    </div>
+                </div>
+
+                <!-- Liste des stations essence à proximité -->
+                <div class="stats-table-card" id="isochrone-stations-panel">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 0.6rem; text-transform: uppercase; color: var(--text-muted)">
+                        <i class="fa-solid fa-gas-pump" style="color: var(--poi-color);"></i> Stations-service accessibles en moins de <span id="iso-list-time-limit">15</span> min
+                    </h4>
+                    <div id="isochrone-stations-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.6rem; max-height: 160px; overflow-y: auto; padding-right: 0.5rem;">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem; grid-column: 1 / -1; text-align: center;">
+                            Lancez le calcul pour afficher les stations-service accessibles.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: RECHERCHE MULTI-CIBLES (POI LE PLUS PROCHE) -->
+    <!-- ================================================================= -->
+    <div id="tab-poi" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-location-crosshairs"></i> Recherche Multi-Cibles</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    Double-cliquez sur la carte pour repositionner le <strong>Départ</strong>. L'algorithme recherche la <strong>station-service</strong> la plus proche en temps de trajet réel.
+                </p>
+
+                <button class="btn btn-primary" onclick="runNearestPOI()"><i class="fa-solid fa-magnifying-glass"></i> Trouver la station la plus proche</button>
+                <button class="btn" onclick="regeneratePOIs()"><i class="fa-solid fa-shuffle"></i> Régénérer les stations</button>
+                <button class="btn" onclick="clearPOISim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
+
+                <div class="educational-card">
+                    <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
+                    <h4>Le Besoin Métier</h4>
+                    <p>Trouver le point d'intérêt (PoI) le plus proche (ex: la station-service disponible) parmi plusieurs candidats dispersés dans la ville.</p>
+                    
+                    <h4>Pourquoi A* est pénalisé ?</h4>
+                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> <strong>Pénalité à N passes.</strong> A* ne gère qu'un point A vers un point B unique. Pour trouver la station la plus proche parmi 5 candidats, A* doit s'exécuter 5 fois (ou concevoir une heuristique complexe), multipliant le temps de calcul.</p>
+                    
+                    <h4>Le Pouvoir de Dijkstra</h4>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Arrêt précoce en une passe.</strong> Dijkstra s'étend de manière uniforme. Dès que la recherche extrait <em>n'importe lequel</em> des POIs de la file de priorité, ce POI est mathématiquement garanti d'être le plus proche. La recherche s'arrête net, en une seule exécution.</p>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="map-panel">
+                    <div class="map-header">
+                        <div class="map-title"><i class="fa-solid fa-gas-pump" style="color: var(--poi-color);"></i> Plus proche Station-Service</div>
+                        <div class="stats-badge-container">
+                            <div class="stats-badge"><i class="fa-solid fa-hourglass-start" style="color: var(--dijkstra-primary);"></i> <span id="poi-stat-duration">- min</span></div>
+                            <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="poi-stat-time">- ms</span></div>
+                        </div>
+                    </div>
+                    <div class="map-wrapper">
+                        <div id="map-poi" class="leaflet-map"></div>
+                    </div>
+                </div>
+
+                <!-- Comparaison Table -->
+                <div class="stats-table-card">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Comparaison de l'effort d'exploration</h4>
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Algorithme</th>
+                                <th>Nombre de calculs (Passes)</th>
+                                <th>Nœuds explorés (Total)</th>
+                                <th>Garantie d'optimalité</th>
+                                <th>Efficacité relative</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight: 700; color: var(--dijkstra-primary);">Dijkstra (Multi-Cibles)</td>
+                                <td>1 passe unique</td>
+                                <td id="poi-res-dijkstra-nodes">-</td>
+                                <td style="color: var(--start-color);">100% Garantie</td>
+                                <td style="font-weight: bold; color: var(--start-color);">Optimale (100%)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 700; color: var(--astar-primary);">A* Classique (Individuel)</td>
+                                <td id="poi-res-astar-runs">- passes</td>
+                                <td id="poi-res-astar-nodes">-</td>
+                                <td style="color: var(--start-color);">100% Garantie</td>
+                                <td id="poi-res-efficiency" style="font-weight: bold; color: var(--end-color);">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: ROUTAGE ECO-ENERGETIQUE (MONTAGNE & DENIVELES) -->
+    <!-- ================================================================= -->
+    <div id="tab-eco" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-leaf"></i> Routage Éco-Énergétique</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    Dijkstra et A* s'affrontent sur un réseau intégrant le dénivelé. Double-cliquez pour déplacer <strong>Départ</strong> et <strong>Arrivée</strong> sur les versants opposés.
+                </p>
+
+                <button class="btn btn-primary" onclick="runEcoRouting()"><i class="fa-solid fa-bolt"></i> Lancer le routage énergétique</button>
+                <button class="btn" onclick="clearEcoSim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
+
+                <div class="educational-card">
+                    <span class="badge badge-dijkstra" style="background: rgba(59, 130, 246, 0.15); color: var(--static-primary); border-color: rgba(59, 130, 246, 0.3);">Modèles physiques</span>
+                    <h4>Le Besoin Métier</h4>
+                    <p>Pour un véhicule électrique en montagne, monter consomme énormément, tandis que descendre régénère la batterie (freinage régénératif). Le trajet le plus économe en Wh n'est pas le plus court en kilomètres.</p>
+                    
+                    <h4>Pourquoi A* est mis en défaut ?</h4>
+                    <p class="text-warning" style="color: #fde047;"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Heuristique biaisée.</strong> L'heuristique géométrique de A* (distance à vol d'oiseau) pousse l'algorithme à aller "tout droit" à travers le relief. Ignorant le coût gravitationnel énorme de la grimpette, A* choisit un chemin sur-consommateur d'énergie.</p>
+                    
+                    <h4>La Supériorité de Dijkstra</h4>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Respect strict de la physique.</strong> Sans biais géométrique 2D, Dijkstra examine uniquement le coût énergétique réel. Il choisira de faire un détour par la vallée plate ou descendante car cela préserve la batterie.</p>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="map-panel">
+                    <div class="map-header">
+                        <div class="map-title"><i class="fa-solid fa-mountain" style="color: var(--static-primary);"></i> Routage Énergétique Aix-en-Provence</div>
+                        <div class="legend-row">
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra (Énergie)</div>
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A* (Géométrique)</div>
+                        </div>
+                    </div>
+                    <div class="map-wrapper">
+                        <div id="map-eco" class="leaflet-map"></div>
+                    </div>
+                </div>
+
+                <!-- Profile and Stats Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; width: 100%;">
+                    <!-- Profile Graph -->
+                    <div class="profile-container">
+                        <div class="profile-title">
+                            <span><i class="fa-solid fa-chart-area"></i> Profil d'altitude des itinéraires</span>
+                            <span style="font-size: 0.7rem; font-weight: normal;">Altitude en mètres vs Distance parcourue</span>
+                        </div>
+                        <div class="profile-svg-wrapper">
+                            <svg id="elevation-svg">
+                                <text x="50%" y="50%" fill="#9ca3af" font-size="12" text-anchor="middle">Lancez le calcul pour tracer le dénivelé</text>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Table -->
+                    <div class="stats-table-card" style="display: flex; flex-direction: column; justify-content: center;">
+                        <h4 style="font-size: 0.8rem; margin-bottom: 0.6rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Bilan Énergétique</h4>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Métrique</th>
+                                    <th style="color: var(--dijkstra-primary);">Dijkstra</th>
+                                    <th style="color: var(--astar-primary);">A*</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Énergie consommée</td>
+                                    <td id="eco-res-dijkstra-energy" style="font-weight: 700;">- Wh</td>
+                                    <td id="eco-res-astar-energy" style="font-weight: 700;">- Wh</td>
+                                </tr>
+                                <tr>
+                                    <td>Distance physique</td>
+                                    <td id="eco-res-dijkstra-dist">- m</td>
+                                    <td id="eco-res-astar-dist">- m</td>
+                                </tr>
+                                <tr>
+                                    <td>Nœuds explorés</td>
+                                    <td id="eco-res-dijkstra-nodes">-</td>
+                                    <td id="eco-res-astar-nodes">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Temps de calcul</td>
+                                    <td id="eco-res-dijkstra-time">- ms</td>
+                                    <td id="eco-res-astar-time">- ms</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: DFS CONNECTIVITY (VERIFICATION DE CHEMIN) -->
+    <!-- ================================================================= -->
+    <div id="tab-dfs" class="tab-content">
+        <div class="simulation-container">
+            <div class="sidebar">
+                <h3 class="section-title"><i class="fa-solid fa-network-wired"></i> Connectivité (DFS)</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    DFS s'oppose à Dijkstra et A* pour valider l'existence d'un chemin. Double-cliquez pour déplacer <strong>Départ</strong> et <strong>Arrivée</strong>.
+                </p>
+
+                <button class="btn btn-primary" onclick="runDfsConnectivity()"><i class="fa-solid fa-play"></i> Lancer le test de connectivité</button>
+                <button class="btn" onclick="clearDfsSim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
+
+                <div class="educational-card">
+                    <span class="badge badge-dfs">DFS : Ultra-Léger / Non-Optimal</span>
+                    <h4>Le Besoin Métier</h4>
+                    <p>Pour le ping réseau, la garbage collection ou la résolution de labyrinthe, l'objectif est de vérifier <em>si</em> une connexion existe, le plus rapidement possible. La longueur ou le coût du chemin importe peu.</p>
+                    
+                    <h4>Pourquoi Dijkstra & A* sont lourds ?</h4>
+                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> <strong>Surcoût de tri.</strong> Ils maintiennent une file de priorité triée (Heap) et calculent des distances cumulées. Le tri ajoute une complexité en $O(\log N)$ à chaque insertion.</p>
+                    
+                    <h4>Le Pouvoir de DFS</h4>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Zéro tri, pile pure.</strong> DFS utilise une simple pile LIFO (Stack) sans aucun calcul de coût ni tri. Il avance en profondeur à haute vitesse ($O(1)$ par nœud) pour trouver le but.</p>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="map-panel">
+                    <div class="map-header">
+                        <div class="map-title"><i class="fa-solid fa-network-wired" style="color: var(--dfs-primary);"></i> Test de Connectivité Aix-en-Provence</div>
+                        <div class="legend-row">
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dfs-primary);"></div>DFS (Chemin trouvé)</div>
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra (Chemin court)</div>
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A* (Chemin court)</div>
+                        </div>
+                    </div>
+                    <div class="map-wrapper">
+                        <div id="map-dfs" class="leaflet-map"></div>
+                    </div>
+                </div>
+
+                <!-- Comparison Table -->
+                <div class="stats-table-card">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Comparaison : Rapidité vs Optimalité</h4>
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Algorithme</th>
+                                <th>Temps de calcul</th>
+                                <th>Nœuds explorés</th>
+                                <th>Longueur du chemin</th>
+                                <th>Garantie d'optimalité</th>
+                                <th>Complexité (LIFO vs Heap)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-left: 3px solid var(--dfs-primary);">
+                                <td style="font-weight: 700; color: var(--dfs-primary);">DFS (Depth-First Search)</td>
+                                <td id="dfs-res-dfs-time" style="font-weight: bold; color: var(--start-color);">- ms</td>
+                                <td id="dfs-res-dfs-nodes">-</td>
+                                <td id="dfs-res-dfs-dist" style="color: var(--text-muted);">- m</td>
+                                <td style="color: var(--end-color); font-weight: bold;">Non optimal (Quelconque)</td>
+                                <td style="font-weight: bold; color: var(--start-color);">O(1) insertion (Stack)</td>
+                            </tr>
+                            <tr style="border-left: 3px solid var(--dijkstra-primary);">
+                                <td style="font-weight: 700; color: var(--dijkstra-primary);">Dijkstra</td>
+                                <td id="dfs-res-dijkstra-time">- ms</td>
+                                <td id="dfs-res-dijkstra-nodes">-</td>
+                                <td id="dfs-res-dijkstra-dist">- m</td>
+                                <td style="color: var(--start-color);">100% Optimal (Plus court)</td>
+                                <td>O(log N) insertion (Heap)</td>
+                            </tr>
+                            <tr style="border-left: 3px solid var(--astar-primary);">
+                                <td style="font-weight: 700; color: var(--astar-primary);">A* (Heuristique)</td>
+                                <td id="dfs-res-astar-time">- ms</td>
+                                <td id="dfs-res-astar-nodes">-</td>
+                                <td id="dfs-res-astar-dist">- m</td>
+                                <td style="color: var(--start-color);">100% Optimal (Plus court)</td>
+                                <td>O(log N) insertion (Heap)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SIMULATION RUNNING OVERLAY -->
+    <!-- ================================================================= -->
+    <div id="sim-overlay" class="sim-overlay">
+        <span class="loader"></span>
+        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.05em;">CALCUL ROUTIER SUR OPENSTREETMAP...</div>
+        <div style="color: var(--text-muted); font-size: 0.8rem;">Calcul des pondérations réelles en Python...</div>
+    </div>
+
+    <footer>
+        Démonstrations Pédagogiques &copy; 2026 - Algorithmes Spatiaux et Contraintes Métiers
+    </footer>
+
+    <script>
+        // --- State ---
+        let currentTab = 'tab-isochrone';
+        let maps = {};
+        let markers = {};
+        let layers = {
+            isochrone: [],
+            poi: [],
+            eco: [],
+            dfs: []
+        };
+        let isAnimating = false;
+        let animationTimers = [];
+
+        // Scenario Locations in Aix-en-Provence
+        let startLatLngIso = [43.5297, 5.4474];
+        let startLatLngPoi = [43.5260, 5.4450];
+        let startLatLngEco = [43.5180, 5.4320];
+        let endLatLngEco = [43.5550, 5.4790];
+        let startLatLngDfs = [43.5297, 5.4385];
+        let endLatLngDfs = [43.5350, 5.4590];
+
+        // POI Coordinates (Gas stations in Aix-en-Provence)
+        let poiList = [];
+
+        // Global colors
+        const colors = {
+            dijkstra: '#00f3ff',
+            astar: '#ec4899',
+            poi: '#f1c40f',
+            start: '#10b981',
+            end: '#ef4444',
+            dfs: '#a855f7'
+        };
+
+        // --- Init Maps ---
+        document.addEventListener("DOMContentLoaded", () => {
+            const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+            const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+            // 1. Isochrone Map
+            maps.isochrone = L.map('map-isochrone', { doubleClickZoom: false }).setView(startLatLngIso, 14);
+            L.tileLayer(tileUrl, { attribution }).addTo(maps.isochrone);
+            setupStartMarker('isochrone', startLatLngIso);
+            maps.isochrone.on('dblclick', (e) => {
+                if (isAnimating) return;
+                startLatLngIso = [e.latlng.lat, e.latlng.lng];
+                setupStartMarker('isochrone', startLatLngIso);
+                clearIsochrone();
+            });
+
+            // 2. POI Map
+            maps.poi = L.map('map-poi', { doubleClickZoom: false }).setView(startLatLngPoi, 14);
+            L.tileLayer(tileUrl, { attribution }).addTo(maps.poi);
+            setupStartMarker('poi', startLatLngPoi);
+            generatePOIs(false); // Generate initial set of POIs without redrawing if not active
+            maps.poi.on('dblclick', (e) => {
+                if (isAnimating) return;
+                startLatLngPoi = [e.latlng.lat, e.latlng.lng];
+                setupStartMarker('poi', startLatLngPoi);
+                clearPOISim();
+            });
+
+            // 3. Eco-routing Map
+            maps.eco = L.map('map-eco', { doubleClickZoom: false }).setView([43.5350, 5.4500], 13);
+            L.tileLayer(tileUrl, { attribution }).addTo(maps.eco);
+            setupStartMarker('eco', startLatLngEco);
+            setupEndMarker('eco', endLatLngEco);
+
+            // 4. DFS Connectivity Map
+            maps.dfs = L.map('map-dfs', { doubleClickZoom: false }).setView(startLatLngDfs, 14);
+            L.tileLayer(tileUrl, { attribution }).addTo(maps.dfs);
+            setupStartMarker('dfs', startLatLngDfs);
+            setupEndMarker('dfs', endLatLngDfs);
+            maps.dfs.on('dblclick', (e) => {
+                if (isAnimating) return;
+                const latlng = e.latlng;
+                const distStart = Math.pow(latlng.lat - startLatLngDfs[0], 2) + Math.pow(latlng.lng - startLatLngDfs[1], 2);
+                const distEnd = Math.pow(latlng.lat - endLatLngDfs[0], 2) + Math.pow(latlng.lng - endLatLngDfs[1], 2);
+
+                if (distStart < distEnd) {
+                    startLatLngDfs = [latlng.lat, latlng.lng];
+                    setupStartMarker('dfs', startLatLngDfs);
+                } else {
+                    endLatLngDfs = [latlng.lat, latlng.lng];
+                    setupEndMarker('dfs', endLatLngDfs);
+                }
+                clearDfsSim();
+            });
+            maps.eco.on('dblclick', (e) => {
+                if (isAnimating) return;
+                const latlng = e.latlng;
+                const distStart = Math.pow(latlng.lat - startLatLngEco[0], 2) + Math.pow(latlng.lng - startLatLngEco[1], 2);
+                const distEnd = Math.pow(latlng.lat - endLatLngEco[0], 2) + Math.pow(latlng.lng - endLatLngEco[1], 2);
+
+                if (distStart < distEnd) {
+                    startLatLngEco = [latlng.lat, latlng.lng];
+                    setupStartMarker('eco', startLatLngEco);
+                } else {
+                    endLatLngEco = [latlng.lat, latlng.lng];
+                    setupEndMarker('eco', endLatLngEco);
+                }
+                clearEcoSim();
+            });
+        });
+
+        // --- Marker Helpers ---
+        function setupStartMarker(scenario, latlng) {
+            if (markers[scenario + '_start']) {
+                maps[scenario].removeLayer(markers[scenario + '_start']);
+            }
+            const icon = L.divIcon({
+                className: 'marker-label',
+                html: `<i class="fa-solid fa-location-dot" style="color: ${colors.start};"></i> DÉPART`,
+                iconSize: [60, 20],
+                iconAnchor: [30, 20]
+            });
+            markers[scenario + '_start'] = L.marker(latlng, { draggable: true, icon: icon }).addTo(maps[scenario]);
+            markers[scenario + '_start'].on('drag', (e) => {
+                const ll = e.target.getLatLng();
+                const coords = [ll.lat, ll.lng];
+                if (scenario === 'isochrone') {
+                    startLatLngIso = coords;
+                    clearIsochrone();
+                } else if (scenario === 'poi') {
+                    startLatLngPoi = coords;
+                    clearPOISim();
+                } else if (scenario === 'eco') {
+                    startLatLngEco = coords;
+                    clearEcoSim();
+                } else if (scenario === 'dfs') {
+                    startLatLngDfs = coords;
+                    clearDfsSim();
+                }
+            });
+            markers[scenario + '_start'].on('dragend', () => {
+                if (scenario === 'isochrone') runIsochrone();
+                else if (scenario === 'poi') runNearestPOI();
+                else if (scenario === 'eco') runEcoRouting();
+                else if (scenario === 'dfs') runDfsConnectivity();
+            });
+        }
+
+        function setupEndMarker(scenario, latlng) {
+            if (markers[scenario + '_end']) {
+                maps[scenario].removeLayer(markers[scenario + '_end']);
+            }
+            const icon = L.divIcon({
+                className: 'marker-label',
+                html: `<i class="fa-solid fa-flag" style="color: ${colors.end};"></i> ARRIVÉE`,
+                iconSize: [65, 20],
+                iconAnchor: [32, 20]
+            });
+            markers[scenario + '_end'] = L.marker(latlng, { draggable: true, icon: icon }).addTo(maps[scenario]);
+            markers[scenario + '_end'].on('drag', (e) => {
+                const ll = e.target.getLatLng();
+                if (scenario === 'eco') {
+                    endLatLngEco = [ll.lat, ll.lng];
+                    clearEcoSim();
+                } else if (scenario === 'dfs') {
+                    endLatLngDfs = [ll.lat, ll.lng];
+                    clearDfsSim();
+                }
+            });
+            markers[scenario + '_end'].on('dragend', () => {
+                if (scenario === 'eco') runEcoRouting();
+                else if (scenario === 'dfs') runDfsConnectivity();
+            });
+        }
+
+        // --- Tab switcher ---
+        function switchTab(tabId) {
+            if (isAnimating) {
+                alert("Veuillez patienter la fin de l'animation en cours.");
+                return;
+            }
+            stopAllAnimations();
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            currentTab = tabId;
+
+            // Invalidate Map sizes (Leaflet requirement)
+            setTimeout(() => {
+                if (tabId === 'tab-isochrone') maps.isochrone.invalidateSize();
+                else if (tabId === 'tab-poi') {
+                    maps.poi.invalidateSize();
+                    drawPOIs();
+                }
+                else if (tabId === 'tab-eco') maps.eco.invalidateSize();
+                else if (tabId === 'tab-dfs') maps.dfs.invalidateSize();
+            }, 50);
+        }
+
+        function showOverlay() {
+            document.getElementById('sim-overlay').classList.add('active');
+        }
+        function hideOverlay() {
+            document.getElementById('sim-overlay').classList.remove('active');
+        }
+
+        function stopAllAnimations() {
+            animationTimers.forEach(clearInterval);
+            animationTimers = [];
+            isAnimating = false;
+        }
+
+        // =================================================================
+        // SCENARIO 1: ISOCHRONES
+        // =================================================================
+        function clearIsochrone() {
+            layers.isochrone.forEach(l => maps.isochrone.removeLayer(l));
+            layers.isochrone = [];
+            document.getElementById('iso-stat-nodes').textContent = '- nœuds atteints';
+            document.getElementById('iso-stat-time').textContent = '- ms';
+            document.getElementById('isochrone-stations-list').innerHTML = `
+                <p style="font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem; grid-column: 1 / -1; text-align: center;">
+                    Lancez le calcul pour afficher les stations-service accessibles.
+                </p>
+            `;
+        }
+
+        async function runIsochrone() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearIsochrone();
+            showOverlay();
+
+            const timeLimit = parseFloat(document.getElementById('iso-time-slider').value);
+
+            try {
+                const response = await fetch('/api/scenarios/isochrone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start: startLatLngIso,
+                        max_time_mins: timeLimit
+                    })
+                });
+
+                if (!response.ok) throw new Error("Erreur serveur.");
+                const data = await response.json();
+                hideOverlay();
+
+                // Snap start coordinates
+                startLatLngIso = data.meta.start_coords;
+                setupStartMarker('isochrone', startLatLngIso);
+
+                // Animate expansion
+                animateIsochrone(data.explored, data.duration_ms, data.nodes_explored_count, timeLimit, data.stations);
+            } catch (err) {
+                hideOverlay();
+                alert(err.message);
+            }
+        }
+
+        function animateIsochrone(explored, serverTime, totalNodes, timeLimit, stations) {
+            isAnimating = true;
+            let idx = 0;
+            const batchSize = Math.max(1, Math.floor(explored.length / 80)); // scale animation steps
+
+            const timer = setInterval(() => {
+                for (let i = 0; i < batchSize; i++) {
+                    if (idx >= explored.length) break;
+                    const node = explored[idx];
+                    
+                    // Color code based on time: green (near) to purple (far)
+                    const ratio = node[2] / timeLimit;
+                    const color = ratio < 0.33 ? '#10b981' : (ratio < 0.66 ? '#00f3ff' : '#8b5cf6');
+
+                    const m = L.circleMarker([node[0], node[1]], {
+                        radius: 3.5,
+                        color: color,
+                        weight: 1,
+                        fillColor: color,
+                        fillOpacity: 0.6
+                    }).addTo(maps.isochrone);
+                    
+                    layers.isochrone.push(m);
+                    idx++;
+                }
+
+                if (idx >= explored.length) {
+                    clearInterval(timer);
+                    isAnimating = false;
+                    document.getElementById('iso-stat-nodes').textContent = `${totalNodes} nœuds atteints`;
+                    document.getElementById('iso-stat-time').textContent = `${serverTime.toFixed(1)} ms`;
+                    
+                    // Display the stations list and map markers
+                    displayIsochroneStations(stations, timeLimit);
+                }
+            }, 10);
+
+            animationTimers.push(timer);
+        }
+
+        function displayIsochroneStations(stations, timeLimit) {
+            // Update time limit in header
+            document.getElementById('iso-list-time-limit').textContent = timeLimit;
+
+            const listContainer = document.getElementById('isochrone-stations-list');
+            listContainer.innerHTML = '';
+
+            if (stations && stations.length > 0) {
+                stations.forEach((st, idx) => {
+                    // Create list item card
+                    const card = document.createElement('div');
+                    card.style.display = 'flex';
+                    card.style.justifyContent = 'space-between';
+                    card.style.alignItems = 'center';
+                    card.style.background = 'rgba(255, 255, 255, 0.02)';
+                    card.style.border = '1px solid rgba(255, 255, 255, 0.05)';
+                    card.style.borderRadius = '8px';
+                    card.style.padding = '0.5rem 0.75rem';
+                    card.style.transition = 'all 0.2s ease';
+                    
+                    card.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <span style="background: rgba(241, 196, 15, 0.15); border: 1px solid rgba(241, 196, 15, 0.3); border-radius: 4px; padding: 0.15rem 0.35rem; font-size: 0.7rem; font-weight: 700; color: var(--poi-color);">
+                                ${idx + 1}
+                            </span>
+                            <span style="font-weight: 600; color: #fff; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${st.name}</span>
+                        </div>
+                        <div style="color: var(--dijkstra-primary); font-weight: 700; font-size: 0.75rem; white-space: nowrap;">
+                            <i class="fa-regular fa-clock"></i> ${st.time_mins.toFixed(1)} min
+                        </div>
+                    `;
+                    
+                    // Hover effect
+                    card.addEventListener('mouseenter', () => {
+                        card.style.background = 'rgba(255, 255, 255, 0.05)';
+                        card.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    });
+                    card.addEventListener('mouseleave', () => {
+                        card.style.background = 'rgba(255, 255, 255, 0.02)';
+                        card.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                    });
+                    
+                    listContainer.appendChild(card);
+
+                    // Add gas-pump markers to the isochrone map
+                    const icon = L.divIcon({
+                        className: 'marker-label',
+                        html: `<i class="fa-solid fa-gas-pump" style="color: var(--poi-color);"></i> ${st.name}`,
+                        iconSize: [110, 20],
+                        iconAnchor: [55, 20]
+                    });
+                    const marker = L.marker(st.coords, { icon: icon }).addTo(maps.isochrone);
+                    layers.isochrone.push(marker);
+                });
+            } else {
+                listContainer.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem; grid-column: 1 / -1; text-align: center;">Aucune station-service n'est accessible dans ce rayon temporel.</p>`;
+            }
+        }
+
+        // =================================================================
+        // SCENARIO 2: MULTI-POI
+        // =================================================================
+        function generatePOIs(redraw = true) {
+            // Generate 5 static-ish POIs in Aix-en-Provence coordinates
+            // around the start node
+            const baseLat = 43.5260;
+            const baseLon = 5.4450;
+            poiList = [
+                [43.5255, 5.4385], // Station A
+                [43.5180, 5.4620], // Station B
+                [43.5350, 5.4290], // Station C
+                [43.5410, 5.4590], // Station D
+                [43.5290, 5.4510]  // Station E
+            ];
+            
+            if (redraw) {
+                clearPOISim();
+                drawPOIs();
+            }
+        }
+
+        function drawPOIs(winningIndex = null) {
+            // Clear current POI markers from layers.poi
+            layers.poi.forEach(l => {
+                if (l instanceof L.Marker && l !== markers.poi_start) {
+                    maps.poi.removeLayer(l);
+                }
+            });
+            
+            poiList.forEach((poi, idx) => {
+                const isWinner = idx === winningIndex;
+                const iconHTML = isWinner 
+                    ? `<i class="fa-solid fa-gas-pump" style="color: ${colors.start}; text-shadow: 0 0 10px ${colors.start};"></i> <span style="color:${colors.start}; font-weight:800;">GAGNANT (N°${idx+1})</span>`
+                    : `<i class="fa-solid fa-gas-pump" style="color: ${colors.poi};"></i> Station N°${idx+1}`;
+                
+                const icon = L.divIcon({
+                    className: 'marker-label',
+                    html: iconHTML,
+                    iconSize: isWinner ? [130, 20] : [90, 20],
+                    iconAnchor: isWinner ? [65, 20] : [45, 20]
+                });
+                
+                const m = L.marker(poi, { icon: icon }).addTo(maps.poi);
+                layers.poi.push(m);
+            });
+        }
+
+        function clearPOISim() {
+            layers.poi.forEach(l => {
+                if (l !== markers.poi_start) maps.poi.removeLayer(l);
+            });
+            layers.poi = [];
+            // Redraw basic POIs
+            drawPOIs();
+            document.getElementById('poi-stat-duration').textContent = '- min';
+            document.getElementById('poi-stat-time').textContent = '- ms';
+            document.getElementById('poi-res-dijkstra-nodes').textContent = '-';
+            document.getElementById('poi-res-astar-runs').textContent = '-';
+            document.getElementById('poi-res-astar-nodes').textContent = '-';
+            document.getElementById('poi-res-efficiency').textContent = '-';
+        }
+
+        function regeneratePOIs() {
+            if (isAnimating) return;
+            // Generate randomized POIs around start node
+            const [sLat, sLon] = startLatLngPoi;
+            poiList = [];
+            for (let i = 0; i < 5; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 0.006 + Math.random() * 0.015; // random distance
+                poiList.push([
+                    sLat + Math.sin(angle) * dist,
+                    sLon + Math.cos(angle) * dist * 1.3
+                ]);
+            }
+            clearPOISim();
+        }
+
+        async function runNearestPOI() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearPOISim();
+            showOverlay();
+
+            try {
+                const response = await fetch('/api/scenarios/nearest_poi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start: startLatLngPoi
+                    })
+                });
+
+                if (!response.ok) throw new Error("Erreur serveur.");
+                const data = await response.json();
+                hideOverlay();
+
+                // Snap start node coords
+                startLatLngPoi = data.meta.start_coords;
+                setupStartMarker('poi', startLatLngPoi);
+
+                // Update gas station candidates dynamically from response
+                if (data.pois) {
+                    poiList = data.pois;
+                }
+
+                animatePOIResults(data);
+            } catch (err) {
+                hideOverlay();
+                alert(err.message);
+            }
+        }
+
+        function animatePOIResults(data) {
+            isAnimating = true;
+            let idx = 0;
+            const explored = data.explored;
+            const batchSize = Math.max(1, Math.floor(explored.length / 50));
+
+            const timer = setInterval(() => {
+                for (let i = 0; i < batchSize; i++) {
+                    if (idx >= explored.length) break;
+                    const node = explored[idx];
+                    const m = L.circleMarker([node[0], node[1]], {
+                        radius: 3,
+                        color: colors.poi,
+                        weight: 1,
+                        fillColor: colors.poi,
+                        fillOpacity: 0.25
+                    }).addTo(maps.poi);
+                    layers.poi.push(m);
+                    idx++;
+                }
+
+                if (idx >= explored.length) {
+                    clearInterval(timer);
+                    isAnimating = false;
+
+                    // Draw winning path
+                    if (data.path) {
+                        const p = L.polyline(data.path, {
+                            color: colors.start,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.poi);
+                        layers.poi.push(p);
+                    }
+
+                    // Update markers with winner highlighted
+                    drawPOIs(data.closest_poi_index);
+
+                    // Write statistics
+                    document.getElementById('poi-stat-duration').textContent = `${data.travel_time_mins.toFixed(1)} min`;
+                    document.getElementById('poi-stat-time').textContent = `${data.stats.duration_ms.toFixed(1)} ms`;
+                    
+                    document.getElementById('poi-res-dijkstra-nodes').textContent = data.stats.dijkstra_explored;
+                    document.getElementById('poi-res-astar-runs').textContent = data.stats.astar_runs;
+                    document.getElementById('poi-res-astar-nodes').textContent = data.stats.astar_explored_total;
+
+                    // Compute efficiency gain
+                    const ratio = (data.stats.astar_explored_total / data.stats.dijkstra_explored).toFixed(1);
+                    document.getElementById('poi-res-efficiency').textContent = `Pénalisé (${ratio}x plus de nœuds)`;
+                }
+            }, 15);
+
+            animationTimers.push(timer);
+        }
+
+        // =================================================================
+        // SCENARIO 3: ECO-ROUTING
+        // =================================================================
+        function clearEcoSim() {
+            layers.eco.forEach(l => maps.eco.removeLayer(l));
+            layers.eco = [];
+            
+            // Clear SVG profile
+            const svg = document.getElementById('elevation-svg');
+            if (svg) {
+                svg.innerHTML = `<text x="50%" y="50%" fill="#9ca3af" font-size="12" text-anchor="middle">Lancez le calcul pour tracer le dénivelé</text>`;
+            }
+
+            document.getElementById('eco-res-dijkstra-energy').textContent = '- Wh';
+            document.getElementById('eco-res-astar-energy').textContent = '- Wh';
+            document.getElementById('eco-res-dijkstra-dist').textContent = '- m';
+            document.getElementById('eco-res-astar-dist').textContent = '- m';
+            document.getElementById('eco-res-dijkstra-nodes').textContent = '-';
+            document.getElementById('eco-res-astar-nodes').textContent = '-';
+            document.getElementById('eco-res-dijkstra-time').textContent = '- ms';
+            document.getElementById('eco-res-astar-time').textContent = '- ms';
+        }
+
+        async function runEcoRouting() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearEcoSim();
+            showOverlay();
+
+            try {
+                const response = await fetch('/api/scenarios/eco_routing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start: startLatLngEco,
+                        end: endLatLngEco
+                    })
+                });
+
+                if (!response.ok) throw new Error("Erreur serveur.");
+                const data = await response.json();
+                hideOverlay();
+
+                // Snap coordinates
+                startLatLngEco = data.meta.start_coords;
+                endLatLngEco = data.meta.end_coords;
+                setupStartMarker('eco', startLatLngEco);
+                setupEndMarker('eco', endLatLngEco);
+
+                animateEcoResults(data);
+            } catch (err) {
+                hideOverlay();
+                alert(err.message);
+            }
+        }
+
+        function animateEcoResults(data) {
+            isAnimating = true;
+            const dExplored = data.dijkstra.explored;
+            const aExplored = data.astar.explored;
+            
+            let dIdx = 0, aIdx = 0;
+            const dBatch = Math.max(1, Math.floor(dExplored.length / 50));
+            const aBatch = Math.max(1, Math.floor(aExplored.length / 50));
+
+            const timer = setInterval(() => {
+                let active = false;
+
+                // Animate Dijkstra nodes (cyan)
+                for (let i = 0; i < dBatch; i++) {
+                    if (dIdx < dExplored.length) {
+                        const m = L.circleMarker([dExplored[dIdx][0], dExplored[dIdx][1]], {
+                            radius: 3,
+                            color: colors.dijkstra,
+                            weight: 1,
+                            fillColor: colors.dijkstra,
+                            fillOpacity: 0.15
+                        }).addTo(maps.eco);
+                        layers.eco.push(m);
+                        dIdx++;
+                        active = true;
+                    }
+                }
+
+                // Animate A* nodes (pink)
+                for (let i = 0; i < aBatch; i++) {
+                    if (aIdx < aExplored.length) {
+                        const m = L.circleMarker([aExplored[aIdx][0], aExplored[aIdx][1]], {
+                            radius: 3,
+                            color: colors.astar,
+                            weight: 1,
+                            fillColor: colors.astar,
+                            fillOpacity: 0.15
+                        }).addTo(maps.eco);
+                        layers.eco.push(m);
+                        aIdx++;
+                        active = true;
+                    }
+                }
+
+                if (!active) {
+                    clearInterval(timer);
+                    isAnimating = false;
+
+                    // Draw paths
+                    if (data.astar.path) {
+                        const p = L.polyline(data.astar.path, {
+                            color: colors.astar,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.eco);
+                        layers.eco.push(p);
+                    }
+
+                    if (data.dijkstra.path) {
+                        const p = L.polyline(data.dijkstra.path, {
+                            color: colors.dijkstra,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.eco);
+                        layers.eco.push(p);
+                    }
+
+                    // Write stats
+                    document.getElementById('eco-res-dijkstra-energy').textContent = `${data.dijkstra.energy_wh.toFixed(0)} Wh`;
+                    document.getElementById('eco-res-astar-energy').textContent = `${data.astar.energy_wh.toFixed(0)} Wh`;
+                    
+                    document.getElementById('eco-res-dijkstra-dist').textContent = `${data.dijkstra.length_m.toFixed(0)} m`;
+                    document.getElementById('eco-res-astar-dist').textContent = `${data.astar.length_m.toFixed(0)} m`;
+                    
+                    document.getElementById('eco-res-dijkstra-nodes').textContent = data.dijkstra.explored_count;
+                    document.getElementById('eco-res-astar-nodes').textContent = data.astar.explored_count;
+                    
+                    document.getElementById('eco-res-dijkstra-time').textContent = `${data.dijkstra.duration_ms.toFixed(1)} ms`;
+                    document.getElementById('eco-res-astar-time').textContent = `${data.astar.duration_ms.toFixed(1)} ms`;
+
+                    // Draw SVGs
+                    drawElevationProfile(data.dijkstra.profile, data.astar.profile);
+                }
+            }, 20);
+
+            animationTimers.push(timer);
+        }
+
+        function drawElevationProfile(dijkstraProfile, astarProfile) {
+            const svg = document.getElementById('elevation-svg');
+            if (!svg) return;
+            svg.innerHTML = '';
+
+            const width = svg.clientWidth || 550;
+            const height = svg.clientHeight || 160;
+            const padding = { top: 15, right: 15, bottom: 25, left: 45 };
+
+            // Find scale bounds
+            const allPts = [...dijkstraProfile, ...astarProfile];
+            const maxDist = Math.max(...allPts.map(p => p.distance), 1);
+            const elevations = allPts.map(p => p.elevation);
+            const maxElev = Math.max(...elevations, 1200);
+            const minElev = Math.min(...elevations, 1000);
+            
+            const elevRange = maxElev - minElev || 100;
+            const yMin = Math.max(0, minElev - elevRange * 0.15);
+            const yMax = maxElev + elevRange * 0.15;
+
+            // Projection functions
+            const scaleX = (d) => padding.left + (d / maxDist) * (width - padding.left - padding.right);
+            const scaleY = (el) => height - padding.bottom - ((el - yMin) / (yMax - yMin)) * (height - padding.top - padding.bottom);
+
+            // Draw Y-axis gridlines
+            let elements = '';
+            for (let i = 0; i <= 3; i++) {
+                const val = yMin + (i / 3) * (yMax - yMin);
+                const y = scaleY(val);
+                elements += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3" />`;
+                elements += `<text x="${padding.left - 8}" y="${y + 4}" fill="#9ca3af" font-size="9" text-anchor="end">${Math.round(val)} m</text>`;
+            }
+
+            // Draw X-axis gridlines
+            for (let i = 0; i <= 4; i++) {
+                const val = (i / 4) * maxDist;
+                const x = scaleX(val);
+                elements += `<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3" />`;
+                elements += `<text x="${x}" y="${height - padding.bottom + 15}" fill="#9ca3af" font-size="9" text-anchor="middle">${(val/1000).toFixed(1)} km</text>`;
+            }
+
+            // Generate Path String
+            const makeD = (prof) => {
+                if (prof.length === 0) return '';
+                let d = `M ${scaleX(prof[0].distance)} ${scaleY(prof[0].elevation)}`;
+                for (let idx = 1; idx < prof.length; idx++) {
+                    d += ` L ${scaleX(prof[idx].distance)} ${scaleY(prof[idx].elevation)}`;
+                }
+                return d;
+            };
+
+            const makeAreaD = (prof, pathD) => {
+                if (prof.length === 0) return '';
+                const startX = scaleX(prof[0].distance);
+                const endX = scaleX(prof[prof.length - 1].distance);
+                const baselineY = height - padding.bottom;
+                return `${pathD} L ${endX} ${baselineY} L ${startX} ${baselineY} Z`;
+            };
+
+            const dD = makeD(dijkstraProfile);
+            const aD = makeD(astarProfile);
+
+            // Draw paths
+            if (aD) {
+                const aArea = makeAreaD(astarProfile, aD);
+                elements += `<path d="${aArea}" fill="rgba(236, 72, 153, 0.03)" />`;
+                elements += `<path d="${aD}" fill="none" stroke="${colors.astar}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+            }
+            if (dD) {
+                const dArea = makeAreaD(dijkstraProfile, dD);
+                elements += `<path d="${dArea}" fill="rgba(0, 243, 255, 0.03)" />`;
+                elements += `<path d="${dD}" fill="none" stroke="${colors.dijkstra}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+            }
+
+            svg.innerHTML = elements;
+        }
+
+        // =================================================================
+        // SCENARIO 4: DFS CONNECTIVITY
+        // =================================================================
+        function clearDfsSim() {
+            layers.dfs.forEach(l => maps.dfs.removeLayer(l));
+            layers.dfs = [];
+            
+            document.getElementById('dfs-res-dijkstra-time').textContent = '- ms';
+            document.getElementById('dfs-res-astar-time').textContent = '- ms';
+            document.getElementById('dfs-res-dfs-time').textContent = '- ms';
+
+            document.getElementById('dfs-res-dijkstra-nodes').textContent = '-';
+            document.getElementById('dfs-res-astar-nodes').textContent = '-';
+            document.getElementById('dfs-res-dfs-nodes').textContent = '-';
+
+            document.getElementById('dfs-res-dijkstra-dist').textContent = '- m';
+            document.getElementById('dfs-res-astar-dist').textContent = '- m';
+            document.getElementById('dfs-res-dfs-dist').textContent = '- m';
+        }
+
+        async function runDfsConnectivity() {
+            if (isAnimating) return;
+            stopAllAnimations();
+            clearDfsSim();
+            showOverlay();
+
+            try {
+                const response = await fetch('/api/scenarios/dfs_connectivity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start: startLatLngDfs,
+                        end: endLatLngDfs
+                    })
+                });
+
+                if (!response.ok) throw new Error("Erreur serveur.");
+                const data = await response.json();
+                hideOverlay();
+
+                // Snap coordinates
+                startLatLngDfs = data.meta.start_coords;
+                endLatLngDfs = data.meta.end_coords;
+                setupStartMarker('dfs', startLatLngDfs);
+                setupEndMarker('dfs', endLatLngDfs);
+
+                animateDfsResults(data);
+            } catch (err) {
+                hideOverlay();
+                alert(err.message);
+            }
+        }
+
+        function animateDfsResults(data) {
+            isAnimating = true;
+            const dExplored = data.dijkstra.explored;
+            const aExplored = data.astar.explored;
+            const dfsExplored = data.dfs.explored;
+            
+            let dIdx = 0, aIdx = 0, dfsIdx = 0;
+            const dBatch = Math.max(1, Math.floor(dExplored.length / 50));
+            const aBatch = Math.max(1, Math.floor(aExplored.length / 50));
+            const dfsBatch = Math.max(1, Math.floor(dfsExplored.length / 50));
+
+            const timer = setInterval(() => {
+                let active = false;
+
+                // Animate Dijkstra nodes (cyan)
+                for (let i = 0; i < dBatch; i++) {
+                    if (dIdx < dExplored.length) {
+                        const m = L.circleMarker([dExplored[dIdx][0], dExplored[dIdx][1]], {
+                            radius: 3,
+                            color: colors.dijkstra,
+                            weight: 1,
+                            fillColor: colors.dijkstra,
+                            fillOpacity: 0.15
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(m);
+                        dIdx++;
+                        active = true;
+                    }
+                }
+
+                // Animate A* nodes (pink)
+                for (let i = 0; i < aBatch; i++) {
+                    if (aIdx < aExplored.length) {
+                        const m = L.circleMarker([aExplored[aIdx][0], aExplored[aIdx][1]], {
+                            radius: 3,
+                            color: colors.astar,
+                            weight: 1,
+                            fillColor: colors.astar,
+                            fillOpacity: 0.15
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(m);
+                        aIdx++;
+                        active = true;
+                    }
+                }
+
+                // Animate DFS nodes (violet/purple)
+                for (let i = 0; i < dfsBatch; i++) {
+                    if (dfsIdx < dfsExplored.length) {
+                        const m = L.circleMarker([dfsExplored[dfsIdx][0], dfsExplored[dfsIdx][1]], {
+                            radius: 3,
+                            color: colors.dfs,
+                            weight: 1,
+                            fillColor: colors.dfs,
+                            fillOpacity: 0.15
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(m);
+                        dfsIdx++;
+                        active = true;
+                    }
+                }
+
+                if (!active) {
+                    clearInterval(timer);
+                    isAnimating = false;
+
+                    // Draw paths
+                    if (data.dijkstra.path) {
+                        const p = L.polyline(data.dijkstra.path, {
+                            color: colors.dijkstra,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(p);
+                    }
+
+                    if (data.astar.path) {
+                        const p = L.polyline(data.astar.path, {
+                            color: colors.astar,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(p);
+                    }
+
+                    if (data.dfs.path) {
+                        const p = L.polyline(data.dfs.path, {
+                            color: colors.dfs,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.dfs);
+                        layers.dfs.push(p);
+                    }
+
+                    // Write stats
+                    document.getElementById('dfs-res-dijkstra-time').textContent = `${data.dijkstra.duration_ms.toFixed(1)} ms`;
+                    document.getElementById('dfs-res-astar-time').textContent = `${data.astar.duration_ms.toFixed(1)} ms`;
+                    document.getElementById('dfs-res-dfs-time').textContent = `${data.dfs.duration_ms.toFixed(1)} ms`;
+
+                    document.getElementById('dfs-res-dijkstra-nodes').textContent = data.dijkstra.explored_count;
+                    document.getElementById('dfs-res-astar-nodes').textContent = data.astar.explored_count;
+                    document.getElementById('dfs-res-dfs-nodes').textContent = data.dfs.explored_count;
+
+                    document.getElementById('dfs-res-dijkstra-dist').textContent = `${data.dijkstra.length_m.toFixed(0)} m`;
+                    document.getElementById('dfs-res-astar-dist').textContent = `${data.astar.length_m.toFixed(0)} m`;
+                    document.getElementById('dfs-res-dfs-dist').textContent = `${data.dfs.length_m.toFixed(0)} m`;
+                }
+            }, 20);
+
+            animationTimers.push(timer);
+        }
+
+    </script>
+</body>
+</html>

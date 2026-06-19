@@ -754,6 +754,7 @@
             <button class="tab-btn" onclick="switchTab('tab-grid-arena')"><i class="fa-solid fa-border-all"></i> Arène Grille</button>
             <button class="tab-btn" onclick="switchTab('tab-osm-mc')"><i class="fa-solid fa-chart-line"></i> Monte Carlo OSM</button>
             <button class="tab-btn" onclick="switchTab('tab-grid-mc')"><i class="fa-solid fa-cubes"></i> Monte Carlo Grille</button>
+            <a href="/scenarios" class="tab-btn" style="text-decoration: none; border: 1px dashed rgba(59, 130, 246, 0.4); color: var(--static-primary);"><i class="fa-solid fa-graduation-cap"></i> Cas d'Usage Réels</a>
         </div>
     </header>
 
@@ -1219,8 +1220,8 @@
         let charts = {};
 
         // OSM Arena State
-        let startLatLng = [45.9180, 6.8580];
-        let endLatLng = [45.9280, 6.8780];
+        let startLatLng = [43.5260, 5.4450];
+        let endLatLng = [43.5350, 5.4590];
         let osmMapLeft = null, osmMapRight = null;
         let osmStartMarkerLeft = null, osmStartMarkerRight = null;
         let osmEndMarkerLeft = null, osmEndMarkerRight = null;
@@ -1322,8 +1323,8 @@
             const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
             const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-            osmMapLeft = L.map('osm-map-left', { doubleClickZoom: false }).setView([45.9227, 6.8685], 14);
-            osmMapRight = L.map('osm-map-right', { doubleClickZoom: false }).setView([45.9227, 6.8685], 14);
+            osmMapLeft = L.map('osm-map-left', { doubleClickZoom: false }).setView([43.5297, 5.4474], 14);
+            osmMapRight = L.map('osm-map-right', { doubleClickZoom: false }).setView([43.5297, 5.4474], 14);
 
             L.tileLayer(tileUrl, { attribution }).addTo(osmMapLeft);
             L.tileLayer(tileUrl, { attribution }).addTo(osmMapRight);
@@ -1889,7 +1890,7 @@
         function initOSMInspectorMap() {
             if (osmInspectorMap) return;
 
-            osmInspectorMap = L.map('mc-inspector-map', { doubleClickZoom: false }).setView([45.9227, 6.8685], 13);
+            osmInspectorMap = L.map('mc-inspector-map', { doubleClickZoom: false }).setView([43.5297, 5.4474], 13);
             const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
             L.tileLayer(tileUrl).addTo(osmInspectorMap);
         }
