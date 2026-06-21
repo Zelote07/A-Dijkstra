@@ -442,7 +442,7 @@ def run_osm_monte_carlo(
         times = [r[model]['travel_time_sec'] for r in trials_log if r[model]['success']]
         nodes = [r[model]['nodes_explored'] for r in trials_log if r[model]['success']]
         comps = [r[model]['computation_ms'] for r in trials_log if r[model]['success']]
-        gaps  = [r[model]['optimality_gap_pct'] for r in trials_log if r[model]['success'] and r[model]['optimality_gap_pct'] is not None]
+        gaps  = [r[model].get('optimality_gap_pct') for r in trials_log if r[model]['success'] and r[model].get('optimality_gap_pct') is not None]
         
         success_count = len(times)
         success_rate = (success_count / trials_count) * 100.0
