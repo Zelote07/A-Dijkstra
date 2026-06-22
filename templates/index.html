@@ -40,10 +40,10 @@
             --static-primary: #3b82f6;
             --static-secondary: rgba(59, 130, 246, 0.15);
             
-            --dfs-primary: #f1c40f;
-            --dfs-secondary: rgba(241, 196, 15, 0.15);
-            --dfs-visited: rgba(241, 196, 15, 0.35);
-            --dfs-visited-new: rgba(243, 156, 18, 0.7);
+            --dfs-primary: #a855f7;
+            --dfs-secondary: rgba(168, 85, 247, 0.15);
+            --dfs-visited: rgba(168, 85, 247, 0.35);
+            --dfs-visited-new: rgba(168, 85, 247, 0.7);
             
             --start-color: #10b981;
             --end-color: #ef4444;
@@ -455,6 +455,47 @@
             transition: background-color 0.15s ease, transform 0.1s ease;
             cursor: pointer;
             border-radius: 1px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Indicateurs de chemin sur la grille Monte Carlo */
+        .path-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            pointer-events: none;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .indicator-dijkstra {
+            width: 75%;
+            height: 75%;
+            background-color: var(--dijkstra-secondary);
+            border: 1.5px solid var(--dijkstra-primary);
+            box-shadow: 0 0 4px rgba(0, 243, 255, 0.5);
+            z-index: 3;
+        }
+
+        .indicator-astar {
+            width: 50%;
+            height: 50%;
+            background-color: var(--astar-secondary);
+            border: 1.5px solid var(--astar-primary);
+            box-shadow: 0 0 4px rgba(236, 72, 153, 0.5);
+            z-index: 4;
+        }
+
+        .indicator-dfs {
+            width: 25%;
+            height: 25%;
+            background-color: var(--dfs-primary);
+            box-shadow: 0 0 4px var(--dfs-primary);
+            z-index: 5;
         }
 
         .cell:hover {
@@ -748,11 +789,8 @@
         <div>
             <h1><i class="fa-solid fa-route"></i> Simulateur Stochastique de Routage</h1>
             <div class="subtitle">Méthode de Monte Carlo & Analyse comparée de Dijkstra, A* et Routage Statique</div>
-        </div>
-        <div class="nav-tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-osm-arena')"><i class="fa-solid fa-earth-europe"></i> Arène OSM</button>
-            <button class="tab-btn" onclick="switchTab('tab-grid-arena')"><i class="fa-solid fa-border-all"></i> Arène Grille</button>
-            <button class="tab-btn" onclick="switchTab('tab-osm-mc')"><i class="fa-solid fa-chart-line"></i> Monte Carlo OSM</button>
+           <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-osm-mc')"><i class="fa-solid fa-chart-line"></i> Monte Carlo OSM</button>
             <button class="tab-btn" onclick="switchTab('tab-grid-mc')"><i class="fa-solid fa-cubes"></i> Monte Carlo Grille</button>
             <a href="/scenarios" class="tab-btn" style="text-decoration: none; border: 1px dashed rgba(59, 130, 246, 0.4); color: var(--static-primary);"><i class="fa-solid fa-graduation-cap"></i> Cas d'Usage Réels</a>
             <a href="/theorie" class="tab-btn" style="text-decoration: none; border: 1px dashed rgba(168, 85, 247, 0.4); color: var(--astar-primary);"><i class="fa-solid fa-book"></i> Rapport Théorique</a>
@@ -760,221 +798,9 @@
     </header>
 
     <!-- ================================================================= -->
-    <!-- TAB 1: ARENE ROUTIERE REELLE (OSM) -->
-    <!-- ================================================================= -->
-    <div id="tab-osm-arena" class="tab-content active">
-        <div class="simulation-container">
-            <div class="sidebar">
-                <h3 class="section-title"><i class="fa-solid fa-gear"></i> Paramètres OSM</h3>
-                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
-                    Double-cliquez sur l'une des cartes pour repositionner le <strong>Départ</strong> et l'<strong>Arrivée</strong>. Tracez des obstacles pour bloquer des routes entières.
-                </p>
-
-                <div class="form-group">
-                    <label for="osm-heuristic-select">Heuristique A* :</label>
-                    <select id="osm-heuristic-select">
-                        <option value="great_circle" selected>Orthodromique (Haversine)</option>
-                        <option value="euclidean">Euclidienne (Mètres)</option>
-                        <option value="weighted_manhattan">Pondérée (Manhattan x3, Inadmissible)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="osm-speed-slider">Vitesse d'animation :</label>
-                    <input type="range" id="osm-speed-slider" min="10" max="300" value="80" step="10">
-                </div>
-
-                <div class="legend">
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color); opacity: 0.35;"></div>Obstacle (Zone)</div>
-                </div>
-
-                <button id="btn-osm-run" class="btn btn-primary" onclick="runOSMArena()"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
-                <button id="btn-osm-clear-obstacles" class="btn btn-danger" onclick="clearOSMArenaObstacles()"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
-                <button id="btn-osm-clear-paths" class="btn" onclick="clearOSMArenaPaths()"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
-
-                <div class="info-card">
-                    <i class="fa-solid fa-info-circle"></i> Le réseau de <strong>Aix-en-Provence, France</strong> est chargé en tâche de fond. Le calcul s'effectue en Python sur le serveur Flask.
-                </div>
-            </div>
-
-            <div class="workspace">
-                <div class="maps-grid">
-                    <!-- Left Map (Dijkstra/DFS/A*) -->
-                    <div class="map-panel">
-                        <div class="map-header">
-                            <div class="map-title">
-                                <i class="fa-solid fa-compass dijkstra-theme" id="osm-left-icon"></i>
-                                <select id="osm-left-select" onchange="changeOSMTheme('left')">
-                                    <option value="dijkstra" selected>Dijkstra</option>
-                                    <option value="astar">A*</option>
-                                    <option value="dfs">DFS</option>
-                                </select>
-                            </div>
-                            <div class="stats-badge-container">
-                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="osm-stat-time-left">- ms</span></div>
-                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="osm-stat-nodes-left">- nœuds</span></div>
-                            </div>
-                        </div>
-                        <div class="map-wrapper">
-                            <div id="osm-map-left" class="leaflet-map"></div>
-                        </div>
-                    </div>
-
-                    <!-- Right Map -->
-                    <div class="map-panel">
-                        <div class="map-header">
-                            <div class="map-title">
-                                <i class="fa-solid fa-bullseye astar-theme" id="osm-right-icon"></i>
-                                <select id="osm-right-select" onchange="changeOSMTheme('right')">
-                                    <option value="dijkstra">Dijkstra</option>
-                                    <option value="astar" selected>A*</option>
-                                    <option value="dfs">DFS</option>
-                                </select>
-                            </div>
-                            <div class="stats-badge-container">
-                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="osm-stat-time-right">- ms</span></div>
-                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="osm-stat-nodes-right">- nœuds</span></div>
-                            </div>
-                        </div>
-                        <div class="map-wrapper">
-                            <div id="osm-map-right" class="leaflet-map"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Récapitulatif -->
-                <div class="stats-table-card" style="padding: 1rem 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: var(--text-muted);">Comparaison Directe</span>
-                        <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
-                            <div>Distance : <span id="osm-res-dist-left" style="font-weight: 700;">-</span> vs <span id="osm-res-dist-right" style="font-weight: 700;">-</span></div>
-                            <div>Temps : <span id="osm-res-time-left" style="font-weight: 700;">-</span> vs <span id="osm-res-time-right" style="font-weight: 700;">-</span></div>
-                            <div>Explorés : <span id="osm-res-nodes-left" style="font-weight: 700;">-</span> vs <span id="osm-res-nodes-right" style="font-weight: 700;">-</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================================================================= -->
-    <!-- TAB 2: ARENE ABSTRACT GRILLE (2D) -->
-    <!-- ================================================================= -->
-    <div id="tab-grid-arena" class="tab-content">
-        <div class="simulation-container">
-            <div class="sidebar">
-                <h3 class="section-title"><i class="fa-solid fa-border-all"></i> Paramètres Grille</h3>
-                
-                <div class="form-group">
-                    <label for="grid-size-select">Taille de grille :</label>
-                    <select id="grid-size-select" onchange="initGridArena()">
-                        <option value="15">15 x 15</option>
-                        <option value="20" selected>20 x 20</option>
-                        <option value="25">25 x 25</option>
-                        <option value="30">30 x 30</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="grid-heuristic-select">Heuristique A* :</label>
-                    <select id="grid-heuristic-select">
-                        <option value="manhattan" selected>Manhattan (L1, Admissible)</option>
-                        <option value="euclidean">Euclidienne (L2, Admissible)</option>
-                        <option value="weighted_manhattan">Manhattan Pondérée (x3, Inadmissible)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Mode de dessin :</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
-                        <button id="btn-draw-wall" class="btn active" onclick="setGridDrawMode('obstacle')">Obstacle</button>
-                        <button id="btn-draw-erase" class="btn" onclick="setGridDrawMode('erase')">Gomme</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="grid-speed-slider">Vitesse d'animation :</label>
-                    <input type="range" id="grid-speed-slider" min="5" max="150" value="40" step="5">
-                </div>
-
-                <div class="legend">
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--start-color);"></div>Départ</div>
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--end-color);"></div>Arrivée</div>
-                    <div class="legend-item"><div class="legend-color" style="background-color: var(--obstacle-color);"></div>Obstacle</div>
-                </div>
-
-                <button id="btn-grid-run" class="btn btn-primary" onclick="runGridArena()"><i class="fa-solid fa-play"></i> Lancer la Comparaison</button>
-                <button class="btn" onclick="generateRandomMaze()"><i class="fa-solid fa-shuffle"></i> Labyrinthe Aléatoire</button>
-                <button class="btn" style="color: #f39c12; border-color: #f39c12;" onclick="generateAStarTrap()"><i class="fa-solid fa-skull-crossbones"></i> Piège pour A*</button>
-                <button class="btn btn-danger" onclick="clearGridArenaWalls()"><i class="fa-solid fa-eraser"></i> Effacer Obstacles</button>
-                <button class="btn" onclick="clearGridArenaPaths()"><i class="fa-solid fa-rotate-left"></i> Effacer Chemins</button>
-            </div>
-
-            <div class="workspace">
-                <div class="grids-container">
-                    <!-- Left Grid (Dijkstra) -->
-                    <div class="grid-panel">
-                        <div class="grid-header" style="width: 100%">
-                            <div class="grid-title">
-                                <i class="fa-solid fa-compass dijkstra-theme" id="grid-left-icon"></i>
-                                <select id="grid-left-select" onchange="changeGridTheme('left')">
-                                    <option value="dijkstra" selected>Dijkstra</option>
-                                    <option value="astar">A*</option>
-                                    <option value="dfs">DFS</option>
-                                </select>
-                            </div>
-                            <div class="stats-badge-container">
-                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="grid-stat-time-left">- ms</span></div>
-                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="grid-stat-nodes-left">- nœuds</span></div>
-                            </div>
-                        </div>
-                        <div class="grid-wrapper">
-                            <div id="grid-left-el" class="grid"></div>
-                        </div>
-                    </div>
-
-                    <!-- Right Grid (A*) -->
-                    <div class="grid-panel">
-                        <div class="grid-header" style="width: 100%">
-                            <div class="grid-title">
-                                <i class="fa-solid fa-bullseye astar-theme" id="grid-right-icon"></i>
-                                <select id="grid-right-select" onchange="changeGridTheme('right')">
-                                    <option value="dijkstra">Dijkstra</option>
-                                    <option value="astar" selected>A*</option>
-                                    <option value="dfs">DFS</option>
-                                </select>
-                            </div>
-                            <div class="stats-badge-container">
-                                <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="grid-stat-time-right">- ms</span></div>
-                                <div class="stats-badge"><i class="fa-solid fa-eye text-success"></i> <span id="grid-stat-nodes-right">- nœuds</span></div>
-                            </div>
-                        </div>
-                        <div class="grid-wrapper">
-                            <div id="grid-right-el" class="grid"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stats-table-card" style="padding: 1rem 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: var(--text-muted);">Résultats Grille</span>
-                        <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
-                            <div>Chemin : <span id="grid-res-path-left" style="font-weight: 700;">-</span> vs <span id="grid-res-path-right" style="font-weight: 700;">-</span></div>
-                            <div>Explorés : <span id="grid-res-nodes-left" style="font-weight: 700;">-</span> vs <span id="grid-res-nodes-right" style="font-weight: 700;">-</span></div>
-                            <div>Temps : <span id="grid-res-time-left" style="font-weight: 700;">-</span> vs <span id="grid-res-time-right" style="font-weight: 700;">-</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================================================================= -->
     <!-- TAB 3: SIMULATEUR MONTE CARLO (OSM) -->
     <!-- ================================================================= -->
-    <div id="tab-osm-mc" class="tab-content">
+    <div id="tab-osm-mc" class="tab-content active">
         <div class="simulation-container">
             <div class="sidebar">
                 <h3 class="section-title"><i class="fa-solid fa-chart-line"></i> Monte Carlo (OSM)</h3>
@@ -1102,6 +928,9 @@
                         <option value="15">15 x 15</option>
                         <option value="20" selected>20 x 20</option>
                         <option value="25">25 x 25</option>
+                        <option value="30">30 x 30</option>
+                        <option value="40">40 x 40</option>
+                        <option value="50">50 x 50</option>
                     </select>
                 </div>
 
@@ -1213,36 +1042,12 @@
 
     <script>
         // --- Shared Application State ---
-        let currentTab = 'tab-osm-arena';
+        let currentTab = 'tab-osm-mc';
         let isAnimating = false;
         let animationIntervals = [];
 
         // Dynamic chart references
         let charts = {};
-
-        // OSM Arena State
-        let startLatLng = [43.5260, 5.4450];
-        let endLatLng = [43.5350, 5.4590];
-        let osmMapLeft = null, osmMapRight = null;
-        let osmStartMarkerLeft = null, osmStartMarkerRight = null;
-        let osmEndMarkerLeft = null, osmEndMarkerRight = null;
-        let osmObstaclesLeft = [];
-        let osmObstaclesRight = [];
-        let osmDrawnItems = null;
-        let osmActiveExploredLeft = [];
-        let osmActiveExploredRight = [];
-        let osmActivePathsLeft = [];
-        let osmActivePathsRight = [];
-
-        // Grid Arena State
-        let gridSize = 20;
-        let gridStartPos = [4, 4];
-        let gridEndPos = [15, 15];
-        let gridObstacles = new Set(); // Stores string "r,c"
-        let isGridMouseDown = false;
-        let gridDrawMode = 'obstacle'; // 'obstacle', 'erase'
-        let gridLeftTheme = 'dijkstra';
-        let gridRightTheme = 'astar';
 
         // OSM Monte Carlo Simulation Cache
         let osmMCDataCache = null;
@@ -1261,8 +1066,7 @@
         const colors = {
             dijkstra: { primary: '#00f3ff', secondary: 'rgba(0, 243, 255, 0.15)', visited: 'rgba(0, 243, 255, 0.35)', visited_new: 'rgba(0, 168, 255, 0.7)' },
             astar: { primary: '#ec4899', secondary: 'rgba(236, 72, 153, 0.15)', visited: 'rgba(236, 72, 153, 0.35)', visited_new: 'rgba(192, 38, 211, 0.7)' },
-            static: { primary: '#3b82f6', secondary: 'rgba(59, 130, 246, 0.15)' },
-            dfs: { primary: '#f1c40f', secondary: 'rgba(241, 196, 15, 0.15)', visited: 'rgba(241, 196, 15, 0.35)', visited_new: 'rgba(243, 156, 18, 0.7)' }
+            dfs: { primary: '#a855f7', secondary: 'rgba(168, 85, 247, 0.15)', visited: 'rgba(168, 85, 247, 0.35)', visited_new: 'rgba(168, 85, 247, 0.7)' }
         };
 
         // --- Tab Management ---
@@ -1286,15 +1090,8 @@
             currentTab = tabId;
 
             // Invalidate Map sizes (Leaflet requirement)
-            if (tabId === 'tab-osm-arena') {
-                setTimeout(() => {
-                    osmMapLeft.invalidateSize();
-                    osmMapRight.invalidateSize();
-                }, 50);
-            } else if (tabId === 'tab-osm-mc') {
+            if (tabId === 'tab-osm-mc') {
                 initOSMInspectorMap();
-            } else if (tabId === 'tab-grid-arena') {
-                initGridArena();
             }
         }
 
@@ -1302,587 +1099,6 @@
             animationIntervals.forEach(clearInterval);
             animationIntervals = [];
             isAnimating = false;
-            
-            // Restore run buttons
-            const btnOsm = document.getElementById('btn-osm-run');
-            if (btnOsm) {
-                btnOsm.disabled = false;
-                btnOsm.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
-            }
-            const btnGrid = document.getElementById('btn-grid-run');
-            if (btnGrid) {
-                btnGrid.disabled = false;
-                btnGrid.innerHTML = `<i class="fa-solid fa-play"></i> Lancer la Comparaison`;
-            }
-        }
-
-        // =================================================================
-        // ARENE CARTOGRAPHIQUE (OSM) - LOGIQUE
-        // =================================================================
-        function initOSMArena() {
-            // CartoDB Positron Dark style
-            const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-            const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
-            osmMapLeft = L.map('osm-map-left', { doubleClickZoom: false }).setView([43.5297, 5.4474], 14);
-            osmMapRight = L.map('osm-map-right', { doubleClickZoom: false }).setView([43.5297, 5.4474], 14);
-
-            L.tileLayer(tileUrl, { attribution }).addTo(osmMapLeft);
-            L.tileLayer(tileUrl, { attribution }).addTo(osmMapRight);
-
-            // Synchronize views
-            let isMoving = false;
-            osmMapLeft.on('move', () => {
-                if (!isMoving) {
-                    isMoving = true;
-                    osmMapRight.setView(osmMapLeft.getCenter(), osmMapLeft.getZoom(), { animate: false });
-                    isMoving = false;
-                }
-            });
-            osmMapRight.on('move', () => {
-                if (!isMoving) {
-                    isMoving = true;
-                    osmMapLeft.setView(osmMapRight.getCenter(), osmMapRight.getZoom(), { animate: false });
-                    isMoving = false;
-                }
-            });
-
-            // Set up markers
-            updateOSMMarkers();
-
-            // Double click listeners to move markers
-            const handleDblClick = (e) => {
-                if (isAnimating) return;
-                const latlng = e.latlng;
-                const distStart = Math.pow(latlng.lat - startLatLng[0], 2) + Math.pow(latlng.lng - startLatLng[1], 2);
-                const distEnd = Math.pow(latlng.lat - endLatLng[0], 2) + Math.pow(latlng.lng - endLatLng[1], 2);
-
-                if (distStart < distEnd) {
-                    startLatLng = [latlng.lat, latlng.lng];
-                } else {
-                    endLatLng = [latlng.lat, latlng.lng];
-                }
-                updateOSMMarkers();
-                clearOSMArenaPaths();
-            };
-
-            osmMapLeft.on('dblclick', handleDblClick);
-            osmMapRight.on('dblclick', handleDblClick);
-
-            // Add Leaflet Draw to the left map, syncing drawn obstacle shapes to the right map
-            osmDrawnItems = new L.FeatureGroup();
-            osmMapLeft.addLayer(osmDrawnItems);
-
-            const drawControl = new L.Control.Draw({
-                edit: false,
-                draw: {
-                    polyline: false, circle: false, circlemarker: false, marker: false,
-                    rectangle: true,
-                    polygon: {
-                        allowIntersection: false,
-                        shapeOptions: { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }
-                    }
-                }
-            });
-            osmMapLeft.addControl(drawControl);
-
-            osmMapLeft.on(L.Draw.Event.CREATED, (e) => {
-                if (isAnimating) return;
-                const layer = e.layer;
-                osmDrawnItems.addLayer(layer);
-                osmObstaclesLeft.push(layer);
-
-                // Sync to right map
-                let rightLayer;
-                if (e.layerType === 'rectangle') {
-                    rightLayer = L.rectangle(layer.getBounds(), { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }).addTo(osmMapRight);
-                } else {
-                    rightLayer = L.polygon(layer.getLatLngs(), { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.3, weight: 2 }).addTo(osmMapRight);
-                }
-                osmObstaclesRight.push(rightLayer);
-                clearOSMArenaPaths();
-            });
-
-            changeOSMTheme('left');
-            changeOSMTheme('right');
-        }
-
-        function updateOSMMarkers() {
-            if (osmStartMarkerLeft) osmMapLeft.removeLayer(osmStartMarkerLeft);
-            if (osmStartMarkerRight) osmMapRight.removeLayer(osmStartMarkerRight);
-            if (osmEndMarkerLeft) osmMapLeft.removeLayer(osmEndMarkerLeft);
-            if (osmEndMarkerRight) osmMapRight.removeLayer(osmEndMarkerRight);
-
-            const startHTML = '<i class="fa-solid fa-location-dot" style="color:#10b981;"></i> DÉPART';
-            const endHTML = '<i class="fa-solid fa-flag" style="color:#ef4444;"></i> ARRIVÉE';
-
-            const startIcon = L.divIcon({ className: 'marker-label', html: startHTML, iconSize: [60, 20], iconAnchor: [30, 20] });
-            const endIcon = L.divIcon({ className: 'marker-label', html: endHTML, iconSize: [65, 20], iconAnchor: [32, 20] });
-
-            osmStartMarkerLeft = L.marker(startLatLng, { draggable: true, icon: startIcon }).addTo(osmMapLeft);
-            osmEndMarkerLeft = L.marker(endLatLng, { draggable: true, icon: endIcon }).addTo(osmMapLeft);
-            osmStartMarkerRight = L.marker(startLatLng, { draggable: true, icon: startIcon }).addTo(osmMapRight);
-            osmEndMarkerRight = L.marker(endLatLng, { draggable: true, icon: endIcon }).addTo(osmMapRight);
-
-            // Bind dragging
-            const bindDrag = (mSrc, mDst, type) => {
-                mSrc.on('drag', (e) => {
-                    const latlng = e.target.getLatLng();
-                    if (type === 'start') startLatLng = [latlng.lat, latlng.lng];
-                    else endLatLng = [latlng.lat, latlng.lng];
-                    mDst.setLatLng(latlng);
-                });
-                mSrc.on('dragend', () => {
-                    clearOSMArenaPaths();
-                });
-            };
-
-            bindDrag(osmStartMarkerLeft, osmStartMarkerRight, 'start');
-            bindDrag(osmStartMarkerRight, osmStartMarkerLeft, 'start');
-            bindDrag(osmEndMarkerLeft, osmEndMarkerRight, 'end');
-            bindDrag(osmEndMarkerRight, osmEndMarkerLeft, 'end');
-        }
-
-        function changeOSMTheme(side) {
-            const select = document.getElementById(`osm-${side}-select`);
-            const val = select.value;
-            select.className = `${val}-theme`;
-            const icon = document.getElementById(`osm-${side}-icon`);
-            icon.className = val === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' :
-                             (val === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
-            clearOSMArenaPaths();
-        }
-
-        function clearOSMArenaObstacles() {
-            if (isAnimating) return;
-            osmDrawnItems.clearLayers();
-            osmObstaclesRight.forEach(layer => osmMapRight.removeLayer(layer));
-            osmObstaclesLeft = [];
-            osmObstaclesRight = [];
-            clearOSMArenaPaths();
-        }
-
-        function clearOSMArenaPaths() {
-            osmActivePathsLeft.forEach(l => osmMapLeft.removeLayer(l));
-            osmActivePathsRight.forEach(l => osmMapRight.removeLayer(l));
-            osmActiveExploredLeft.forEach(l => osmMapLeft.removeLayer(l));
-            osmActiveExploredRight.forEach(l => osmMapRight.removeLayer(l));
-
-            osmActivePathsLeft = [];
-            osmActivePathsRight = [];
-            osmActiveExploredLeft = [];
-            osmActiveExploredRight = [];
-
-            document.getElementById('osm-stat-time-left').textContent = '- ms';
-            document.getElementById('osm-stat-nodes-left').textContent = '- nœuds';
-            document.getElementById('osm-stat-time-right').textContent = '- ms';
-            document.getElementById('osm-stat-nodes-right').textContent = '- nœuds';
-
-            document.getElementById('osm-res-dist-left').textContent = '-';
-            document.getElementById('osm-res-dist-right').textContent = '-';
-            document.getElementById('osm-res-time-left').textContent = '- ms';
-            document.getElementById('osm-res-time-right').textContent = '- ms';
-            document.getElementById('osm-res-nodes-left').textContent = '-';
-            document.getElementById('osm-res-nodes-right').textContent = '-';
-        }
-
-        async function runOSMArena() {
-            if (isAnimating) return;
-            stopAllAnimations();
-            clearOSMArenaPaths();
-
-            const btn = document.getElementById('btn-osm-run');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Résolution...`;
-            isAnimating = true;
-
-            // Extract polygon obstacles geometries
-            const obstaclesArray = [];
-            osmDrawnItems.eachLayer((layer) => {
-                const coords = [];
-                const latlngs = layer.getLatLngs()[0];
-                latlngs.forEach(ll => coords.push([ll.lat, ll.lng]));
-                obstaclesArray.push(coords);
-            });
-
-            const payload = {
-                start: startLatLng,
-                end: endLatLng,
-                obstacles: obstaclesArray,
-                heuristic: document.getElementById('osm-heuristic-select').value
-            };
-
-            try {
-                const response = await fetch('/api/solve_osm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || "Erreur de communication avec le serveur.");
-                }
-                const data = await response.json();
-                
-                // Snap start/end locations slightly
-                startLatLng = data.meta.start_node_coords;
-                endLatLng = data.meta.end_node_coords;
-                updateOSMMarkers();
-
-                animateOSMArenaResults(data);
-            } catch (err) {
-                alert("Erreur : " + err.message);
-                stopAllAnimations();
-            }
-        }
-
-        function animateOSMArenaResults(data) {
-            const leftAlgo = document.getElementById('osm-left-select').value;
-            const rightAlgo = document.getElementById('osm-right-select').value;
-            const speed = parseInt(document.getElementById('osm-speed-slider').value);
-
-            const leftData = data[leftAlgo];
-            const rightData = data[rightAlgo];
-
-            const leftExplored = leftData.explored;
-            const rightExplored = rightData.explored;
-
-            let lIdx = 0;
-            let rIdx = 0;
-
-            const timer = setInterval(() => {
-                let active = false;
-
-                if (lIdx < leftExplored.length) {
-                    const m = L.circleMarker(leftExplored[lIdx], { radius: 3, color: colors[leftAlgo].primary, weight: 1, fillOpacity: 0.5 }).addTo(osmMapLeft);
-                    osmActiveExploredLeft.push(m);
-                    lIdx++;
-                    active = true;
-                }
-
-                if (rIdx < rightExplored.length) {
-                    const m = L.circleMarker(rightExplored[rIdx], { radius: 3, color: colors[rightAlgo].primary, weight: 1, fillOpacity: 0.5 }).addTo(osmMapRight);
-                    osmActiveExploredRight.push(m);
-                    rIdx++;
-                    active = true;
-                }
-
-                if (!active) {
-                    clearInterval(timer);
-                    // Draw final paths
-                    if (leftData.path) {
-                        const p = L.polyline(leftData.path, { color: colors[leftAlgo].primary, weight: 5, opacity: 0.85 }).addTo(osmMapLeft);
-                        osmActivePathsLeft.push(p);
-                    }
-                    if (rightData.path) {
-                        const p = L.polyline(rightData.path, { color: colors[rightAlgo].primary, weight: 5, opacity: 0.85 }).addTo(osmMapRight);
-                        osmActivePathsRight.push(p);
-                    }
-                    // Write statistics
-                    document.getElementById('osm-stat-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('osm-stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
-                    document.getElementById('osm-stat-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('osm-stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
-
-                    document.getElementById('osm-res-dist-left').textContent = leftData.path ? `${(leftData.path_length_meters/1000.0).toFixed(3)} km` : 'Bloqué';
-                    document.getElementById('osm-res-dist-right').textContent = rightData.path ? `${(rightData.path_length_meters/1000.0).toFixed(3)} km` : 'Bloqué';
-                    document.getElementById('osm-res-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('osm-res-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('osm-res-nodes-left').textContent = leftData.nodes_explored_count;
-                    document.getElementById('osm-res-nodes-right').textContent = rightData.nodes_explored_count;
-
-                    stopAllAnimations();
-                }
-            }, 1000 / speed);
-
-            animationIntervals.push(timer);
-        }
-
-        // =================================================================
-        // ARENE ABSTRACT GRILLE (2D) - LOGIQUE
-        // =================================================================
-        function initGridArena() {
-            gridSize = parseInt(document.getElementById('grid-size-select').value);
-            gridObstacles.clear();
-            
-            gridStartPos = [Math.floor(gridSize / 4), Math.floor(gridSize / 4)];
-            gridEndPos = [Math.floor(gridSize * 3 / 4), Math.floor(gridSize * 3 / 4)];
-
-            setupGridArenaElement(document.getElementById('grid-left-el'), 'left');
-            setupGridArenaElement(document.getElementById('grid-right-el'), 'right');
-            clearGridArenaPaths();
-            changeGridTheme('left');
-            changeGridTheme('right');
-        }
-
-        function setupGridArenaElement(el, side) {
-            el.innerHTML = '';
-            el.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
-            el.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-
-            const cellWidth = Math.min(24, Math.floor(400 / gridSize));
-            el.style.width = `${cellWidth * gridSize}px`;
-            el.style.height = `${cellWidth * gridSize}px`;
-
-            for (let r = 0; r < gridSize; r++) {
-                for (let c = 0; c < gridSize; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
-                    cell.dataset.side = side;
-
-                    // Click listeners for drawing walls
-                    cell.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        if (isAnimating) return;
-                        isGridMouseDown = true;
-                        handleGridCellInteract(r, c);
-                    });
-                    cell.addEventListener('mouseenter', () => {
-                        if (isGridMouseDown && !isAnimating) {
-                            handleGridCellInteract(r, c);
-                        }
-                    });
-                    window.addEventListener('mouseup', () => isGridMouseDown = false);
-
-                    updateGridCellVisual(cell, r, c);
-                    el.appendChild(cell);
-                }
-            }
-        }
-
-        function updateGridCellVisual(cell, r, c) {
-            cell.className = 'cell';
-            if (r === gridStartPos[0] && c === gridStartPos[1]) cell.classList.add('start');
-            else if (r === gridEndPos[0] && c === gridEndPos[1]) cell.classList.add('end');
-            else if (gridObstacles.has(`${r},${c}`)) cell.classList.add('obstacle');
-        }
-
-        function handleGridCellInteract(r, c) {
-            if ((r === gridStartPos[0] && c === gridStartPos[1]) || (r === gridEndPos[0] && c === gridEndPos[1])) return;
-            
-            const key = `${r},${c}`;
-            if (gridDrawMode === 'obstacle') {
-                gridObstacles.add(key);
-            } else {
-                gridObstacles.delete(key);
-            }
-
-            // Sync visual styles across both grids
-            const cells = document.querySelectorAll(`.cell[data-row="${r}"][data-col="${c}"]`);
-            cells.forEach(cell => updateGridCellVisual(cell, r, c));
-            clearGridArenaPaths();
-        }
-
-        function setGridDrawMode(mode) {
-            gridDrawMode = mode;
-            document.getElementById('btn-draw-wall').classList.toggle('active', mode === 'obstacle');
-            document.getElementById('btn-draw-erase').classList.toggle('active', mode === 'erase');
-        }
-
-        function changeGridTheme(side) {
-            const select = document.getElementById(`grid-${side}-select`);
-            const val = select.value;
-            select.className = `${val}-theme`;
-            if (side === 'left') gridLeftTheme = val;
-            else gridRightTheme = val;
-
-            const icon = document.getElementById(`grid-${side}-icon`);
-            icon.className = val === 'dijkstra' ? 'fa-solid fa-compass dijkstra-theme' :
-                             (val === 'astar' ? 'fa-solid fa-bullseye astar-theme' : 'fa-solid fa-sitemap dfs-theme');
-            clearGridArenaPaths();
-        }
-
-        function clearGridArenaWalls() {
-            if (isAnimating) return;
-            gridObstacles.clear();
-            const cells = document.querySelectorAll('.grid .cell');
-            cells.forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                const c = parseInt(cell.dataset.col);
-                updateGridCellVisual(cell, r, c);
-            });
-            clearGridArenaPaths();
-        }
-
-        function clearGridArenaPaths() {
-            const cells = document.querySelectorAll('.grid .cell');
-            cells.forEach(cell => {
-                cell.classList.remove('visited-left', 'path-left', 'visited-right', 'path-right');
-                cell.removeAttribute('style');
-            });
-            document.getElementById('grid-stat-time-left').textContent = '- ms';
-            document.getElementById('grid-stat-nodes-left').textContent = '- nœuds';
-            document.getElementById('grid-stat-time-right').textContent = '- ms';
-            document.getElementById('grid-stat-nodes-right').textContent = '- nœuds';
-
-            document.getElementById('grid-res-path-left').textContent = '-';
-            document.getElementById('grid-res-path-right').textContent = '-';
-            document.getElementById('grid-res-nodes-left').textContent = '-';
-            document.getElementById('grid-res-nodes-right').textContent = '-';
-            document.getElementById('grid-res-time-left').textContent = '- ms';
-            document.getElementById('grid-res-time-right').textContent = '- ms';
-        }
-
-        function generateRandomMaze() {
-            if (isAnimating) return;
-            gridObstacles.clear();
-            for (let r = 0; r < gridSize; r++) {
-                for (let c = 0; c < gridSize; c++) {
-                    if ((r === gridStartPos[0] && c === gridStartPos[1]) || (r === gridEndPos[0] && c === gridEndPos[1])) continue;
-                    // ~30% obstacle density
-                    if (Math.random() < 0.28) {
-                        gridObstacles.add(`${r},${c}`);
-                    }
-                }
-            }
-            const cells = document.querySelectorAll('.grid .cell');
-            cells.forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                const c = parseInt(cell.dataset.col);
-                updateGridCellVisual(cell, r, c);
-            });
-            clearGridArenaPaths();
-        }
-
-        function generateAStarTrap() {
-            if (isAnimating) return;
-            gridObstacles.clear();
-            
-            // Build a wall trap block between start and end
-            // Start at [4,4], End at [15,15] for 20x20
-            const mid = Math.floor(gridSize / 2);
-            for (let c = 0; c < gridSize - 2; c++) {
-                gridObstacles.add(`${mid},${c}`);
-            }
-
-            const cells = document.querySelectorAll('.grid .cell');
-            cells.forEach(cell => {
-                const r = parseInt(cell.dataset.row);
-                const c = parseInt(cell.dataset.col);
-                updateGridCellVisual(cell, r, c);
-            });
-            clearGridArenaPaths();
-        }
-
-        async function runGridArena() {
-            if (isAnimating) return;
-            stopAllAnimations();
-            clearGridArenaPaths();
-
-            const btn = document.getElementById('btn-grid-run');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Résolution...`;
-            isAnimating = true;
-
-            const obsArray = Array.from(gridObstacles).map(str => str.split(',').map(Number));
-            const payload = {
-                rows: gridSize,
-                cols: gridSize,
-                start: gridStartPos,
-                end: gridEndPos,
-                obstacles: obsArray,
-                heuristic: document.getElementById('grid-heuristic-select').value
-            };
-
-            try {
-                const response = await fetch('/api/solve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error("HTTP error on API");
-                const data = await response.json();
-                
-                animateGridArenaResults(data);
-            } catch (err) {
-                alert("Erreur : " + err.message);
-                stopAllAnimations();
-            }
-        }
-
-        function animateGridArenaResults(data) {
-            const speed = parseInt(document.getElementById('grid-speed-slider').value);
-            
-            const leftData = data[gridLeftTheme];
-            const rightData = data[gridRightTheme];
-
-            const leftExplored = leftData.explored;
-            const rightExplored = rightData.explored;
-
-            let lIdx = 0;
-            let rIdx = 0;
-
-            // CSS variable injection for customized theme colours in keyframes
-            const root = document.documentElement;
-            root.style.setProperty('--left-primary', colors[gridLeftTheme].primary);
-            root.style.setProperty('--left-visited-bg', colors[gridLeftTheme].visited);
-            root.style.setProperty('--right-primary', colors[gridRightTheme].primary);
-            root.style.setProperty('--right-visited-bg', colors[gridRightTheme].visited);
-
-            const timer = setInterval(() => {
-                let active = false;
-
-                if (lIdx < leftExplored.length) {
-                    const pos = leftExplored[lIdx];
-                    const cell = document.querySelector(`#grid-left-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
-                    if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
-                        cell.classList.add('visited-left');
-                    }
-                    lIdx++;
-                    active = true;
-                }
-
-                if (rIdx < rightExplored.length) {
-                    const pos = rightExplored[rIdx];
-                    const cell = document.querySelector(`#grid-right-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
-                    if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
-                        cell.classList.add('visited-right');
-                    }
-                    rIdx++;
-                    active = true;
-                }
-
-                if (!active) {
-                    clearInterval(timer);
-                    // Draw final paths
-                    if (leftData.path) {
-                        leftData.path.forEach(pos => {
-                            const cell = document.querySelector(`#grid-left-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
-                            if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
-                                cell.classList.add('path-left');
-                            }
-                        });
-                    }
-                    if (rightData.path) {
-                        rightData.path.forEach(pos => {
-                            const cell = document.querySelector(`#grid-right-el .cell[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
-                            if (cell && !cell.classList.contains('start') && !cell.classList.contains('end')) {
-                                cell.classList.add('path-right');
-                            }
-                        });
-                    }
-
-                    // Display stats
-                    document.getElementById('grid-stat-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('grid-stat-nodes-left').textContent = `${leftData.nodes_explored_count} nœuds`;
-                    document.getElementById('grid-stat-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('grid-stat-nodes-right').textContent = `${rightData.nodes_explored_count} nœuds`;
-
-                    document.getElementById('grid-res-path-left').textContent = leftData.path ? `${leftData.path.length} pas` : 'Bloqué';
-                    document.getElementById('grid-res-path-right').textContent = rightData.path ? `${rightData.path.length} pas` : 'Bloqué';
-                    document.getElementById('grid-res-nodes-left').textContent = leftData.nodes_explored_count;
-                    document.getElementById('grid-res-nodes-right').textContent = rightData.nodes_explored_count;
-                    document.getElementById('grid-res-time-left').textContent = `${leftData.duration_ms.toFixed(2)} ms`;
-                    document.getElementById('grid-res-time-right').textContent = `${rightData.duration_ms.toFixed(2)} ms`;
-
-                    stopAllAnimations();
-                }
-            }, 1000 / speed);
-
-            animationIntervals.push(timer);
         }
 
         // =================================================================
@@ -1913,21 +1129,10 @@
             overlayTitle.textContent = "INITIALISATION DE LA SIMULATION...";
             overlayDetail.textContent = "Modélisation du réseau routier et des distributions de trafic...";
 
-            // Extract drawing obstacles from OSM Arena map
-            const staticObstacles = [];
-            if (osmDrawnItems) {
-                osmDrawnItems.eachLayer((layer) => {
-                    const coords = [];
-                    const latlngs = layer.getLatLngs()[0];
-                    latlngs.forEach(ll => coords.push([ll.lat, ll.lng]));
-                    staticObstacles.push(coords);
-                });
-            }
-
             const payload = {
-                start: startLatLng,
-                end: endLatLng,
-                obstacles: staticObstacles,
+                start: [43.5260, 5.4450],
+                end: [43.5350, 5.4590],
+                obstacles: [],
                 trials: trials,
                 traffic_level: traffic,
                 closure_prob: closure
@@ -1982,10 +1187,10 @@
             const mNames = {
                 dijkstra: { label: 'Dijkstra (Dynamique)', color: colors.dijkstra.primary, icon: 'fa-compass' },
                 astar: { label: 'A* (Dynamique)', color: colors.astar.primary, icon: 'fa-bullseye' },
-                static: { label: 'Routeur Statique', color: colors.static.primary, icon: 'fa-arrow-trend-up' }
+                dfs: { label: 'DFS (Dynamique)', color: colors.dfs.primary, icon: 'fa-network-wired' }
             };
 
-            for (const key of ['dijkstra', 'astar', 'static']) {
+            for (const key of ['dijkstra', 'astar', 'dfs']) {
                 const s = data.stats[key];
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -2006,27 +1211,25 @@
         }
 
         function buildOSMMCCharts(data) {
-            // Destroy existing charts to prevent hover bugs
             if (charts.osmHist) charts.osmHist.destroy();
             if (charts.osmConv) charts.osmConv.destroy();
 
             const trials = data.trials;
 
-            // --- CHART 1: HISTOGRAM OF TRAVEL TIMES ---
-            // Extract successful travel times for Dijkstra and Static
             const dTimes = trials.filter(r => r.dijkstra.success).map(r => r.dijkstra.travel_time_sec / 60.0);
-            const sTimes = trials.filter(r => r.static.success).map(r => r.static.travel_time_sec / 60.0);
+            const aTimes = trials.filter(r => r.astar.success).map(r => r.astar.travel_time_sec / 60.0);
+            const dfsTimes = trials.filter(r => r.dfs.success).map(r => r.dfs.travel_time_sec / 60.0);
 
-            // Generate bins
-            const allTimes = [...dTimes, ...sTimes];
-            const minT = Math.min(...allTimes);
-            const maxT = Math.max(...allTimes);
+            const allTimes = [...dTimes, ...aTimes, ...dfsTimes];
+            const minT = allTimes.length > 0 ? Math.min(...allTimes) : 0;
+            const maxT = allTimes.length > 0 ? Math.max(...allTimes) : 10;
             const binCount = 12;
-            const binWidth = (maxT - minT) / binCount;
+            const binWidth = (maxT - minT) / binCount || 1;
             
             const bins = [];
             const dCounts = new Array(binCount).fill(0);
-            const sCounts = new Array(binCount).fill(0);
+            const aCounts = new Array(binCount).fill(0);
+            const dfsCounts = new Array(binCount).fill(0);
 
             for (let i = 0; i < binCount; i++) {
                 const lower = minT + i * binWidth;
@@ -2039,11 +1242,15 @@
                 if (idx >= binCount) idx = binCount - 1;
                 if (idx >= 0) dCounts[idx]++;
             });
-
-            sTimes.forEach(t => {
+            aTimes.forEach(t => {
                 let idx = Math.floor((t - minT) / binWidth);
                 if (idx >= binCount) idx = binCount - 1;
-                if (idx >= 0) sCounts[idx]++;
+                if (idx >= 0) aCounts[idx]++;
+            });
+            dfsTimes.forEach(t => {
+                let idx = Math.floor((t - minT) / binWidth);
+                if (idx >= binCount) idx = binCount - 1;
+                if (idx >= 0) dfsCounts[idx]++;
             });
 
             const ctxHist = document.getElementById('chart-osm-histogram').getContext('2d');
@@ -2053,7 +1260,8 @@
                     labels: bins,
                     datasets: [
                         { label: 'Dijkstra (Dynamique)', data: dCounts, backgroundColor: 'rgba(0, 243, 255, 0.45)', borderColor: '#00f3ff', borderWidth: 1 },
-                        { label: 'Routeur Statique', data: sCounts, backgroundColor: 'rgba(59, 130, 246, 0.45)', borderColor: '#3b82f6', borderWidth: 1 }
+                        { label: 'A* (Dynamique)', data: aCounts, backgroundColor: 'rgba(236, 72, 153, 0.45)', borderColor: '#ec4899', borderWidth: 1 },
+                        { label: 'DFS (Dynamique)', data: dfsCounts, backgroundColor: 'rgba(168, 85, 247, 0.45)', borderColor: '#a855f7', borderWidth: 1 }
                     ]
                 },
                 options: {
@@ -2067,31 +1275,38 @@
                 }
             });
 
-            // --- CHART 2: CONVERGENCE OF THE RUNNING MEAN ---
             const dRunningSum = [];
-            const sRunningSum = [];
+            const aRunningSum = [];
+            const dfsRunningSum = [];
             const xLabels = [];
 
             let dCount = 0, dSum = 0;
-            let sCount = 0, sSum = 0;
+            let aCount = 0, aSum = 0;
+            let dfsCount = 0, dfsSum = 0;
 
             for (let i = 0; i < trials.length; i++) {
                 xLabels.push(i + 1);
                 
                 const dSuccess = trials[i].dijkstra.success;
-                const sSuccess = trials[i].static.success;
+                const aSuccess = trials[i].astar.success;
+                const dfsSuccess = trials[i].dfs.success;
 
                 if (dSuccess) {
                     dCount++;
                     dSum += trials[i].dijkstra.travel_time_sec / 60.0;
                 }
-                if (sSuccess) {
-                    sCount++;
-                    sSum += trials[i].static.travel_time_sec / 60.0;
+                if (aSuccess) {
+                    aCount++;
+                    aSum += trials[i].astar.travel_time_sec / 60.0;
+                }
+                if (dfsSuccess) {
+                    dfsCount++;
+                    dfsSum += trials[i].dfs.travel_time_sec / 60.0;
                 }
 
                 dRunningSum.push(dCount > 0 ? dSum / dCount : null);
-                sRunningSum.push(sCount > 0 ? sSum / sCount : null);
+                aRunningSum.push(aCount > 0 ? aSum / aCount : null);
+                dfsRunningSum.push(dfsCount > 0 ? dfsSum / dfsCount : null);
             }
 
             const ctxConv = document.getElementById('chart-osm-convergence').getContext('2d');
@@ -2101,7 +1316,8 @@
                     labels: xLabels,
                     datasets: [
                         { label: 'Dijkstra Dynamique', data: dRunningSum, borderColor: '#00f3ff', borderWidth: 2, fill: false, pointRadius: 0 },
-                        { label: 'Routeur Statique', data: sRunningSum, borderColor: '#3b82f6', borderWidth: 2, fill: false, pointRadius: 0 }
+                        { label: 'A* Dynamique', data: aRunningSum, borderColor: '#ec4899', borderWidth: 2, fill: false, pointRadius: 0 },
+                        { label: 'DFS Dynamique', data: dfsRunningSum, borderColor: '#a855f7', borderWidth: 2, fill: false, pointRadius: 0 }
                     ]
                 },
                 options: {
@@ -2121,19 +1337,16 @@
             select.innerHTML = '<option value="">-- Choisir un essai --</option>';
             select.disabled = false;
 
-            // Populate the dropdown with metadata for each trial
             data.trials.forEach(r => {
                 const dState = r.dijkstra.success ? `${(r.dijkstra.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
-                const sState = r.static.success ? `${(r.static.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
+                const aState = r.astar.success ? `${(r.astar.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
+                const dfsState = r.dfs.success ? `${(r.dfs.travel_time_sec/60.0).toFixed(1)}m` : 'Bloqué';
                 
-                // Highlight trials where static router performed significantly worse or got blocked
-                let label = `Essai #${r.trial} - [Dyn: ${dState} / Stat: ${sState}]`;
+                let label = `Essai #${r.trial} - [Dij: ${dState} | A*: ${aState} | DFS: ${dfsState}]`;
                 if (!r.dijkstra.success) {
                     label += ' ⚠️ Réseau Déconnecté';
-                } else if (r.static.success && r.static.optimality_gap_pct > 15.0) {
-                    label += ` ⚡ Gap Statique (+${r.static.optimality_gap_pct.toFixed(0)}%)`;
-                } else if (r.dijkstra.success && !r.static.success) {
-                    label += ' 🚫 Routeur Statique Bloqué';
+                } else if (r.dfs.success && r.dfs.optimality_gap_pct > 15.0) {
+                    label += ` ⚡ Gap DFS (+${r.dfs.optimality_gap_pct.toFixed(0)}%)`;
                 }
 
                 const opt = document.createElement('option');
@@ -2142,7 +1355,6 @@
                 select.appendChild(opt);
             });
 
-            // Automatically load and inspect trial 1 on the map
             select.value = "1";
             inspectOSMTrial(1);
         }
@@ -2153,13 +1365,11 @@
             const trial = osmMCDataCache.trials.find(r => r.trial === parseInt(trialNum));
             if (!trial) return;
 
-            // Clear previous layers
             osmInspectorLayers.forEach(l => osmInspectorMap.removeLayer(l));
             osmInspectorLayers = [];
             if (osmInspectorStartMarker) osmInspectorMap.removeLayer(osmInspectorStartMarker);
             if (osmInspectorEndMarker) osmInspectorMap.removeLayer(osmInspectorEndMarker);
 
-            // Snapped nodes markers
             const startLoc = osmMCDataCache.meta.start_node_coords;
             const endLoc = osmMCDataCache.meta.end_node_coords;
 
@@ -2169,46 +1379,49 @@
             osmInspectorStartMarker = L.marker(startLoc, { icon: startIcon }).addTo(osmInspectorMap);
             osmInspectorEndMarker = L.marker(endLoc, { icon: endIcon }).addTo(osmInspectorMap);
 
-            // Draw Paths (Static expected vs realized, Dijkstra dynamic)
-            // 1. Static router path (with local detours)
-            if (trial.static.success && trial.static.path_geom) {
-                const poly = L.polyline(trial.static.path_geom, {
-                    color: colors.static.primary, weight: 6, opacity: 0.9, dashArray: '2, 8'
-                }).addTo(osmInspectorMap);
-                osmInspectorLayers.push(poly);
-            }
-
-            // 2. Dijkstra dynamic path (theoretical optimum for this realization)
             if (trial.dijkstra.success && trial.dijkstra.path_geom) {
                 const poly = L.polyline(trial.dijkstra.path_geom, {
-                    color: colors.dijkstra.primary, weight: 4, opacity: 0.85
+                    color: colors.dijkstra.primary, weight: 5, opacity: 0.85
                 }).addTo(osmInspectorMap);
                 osmInspectorLayers.push(poly);
             }
 
-            // Zoom map to path bounds
+            if (trial.astar.success && trial.astar.path_geom) {
+                const poly = L.polyline(trial.astar.path_geom, {
+                    color: colors.astar.primary, weight: 3.5, opacity: 0.85
+                }).addTo(osmInspectorMap);
+                osmInspectorLayers.push(poly);
+            }
+
+            if (trial.dfs.success && trial.dfs.path_geom) {
+                const poly = L.polyline(trial.dfs.path_geom, {
+                    color: colors.dfs.primary, weight: 2.5, opacity: 0.8, dashArray: '4, 4'
+                }).addTo(osmInspectorMap);
+                osmInspectorLayers.push(poly);
+            }
+
             if (trial.dijkstra.success && trial.dijkstra.path_geom && trial.dijkstra.path_geom.length > 0) {
                 osmInspectorMap.fitBounds(L.polyline(trial.dijkstra.path_geom).getBounds(), { padding: [20, 20] });
             } else {
                 osmInspectorMap.setView(startLoc, 13);
             }
 
-            // Update details texts
             const detailsDiv = document.getElementById('inspector-trial-details');
             
-            const gapText = trial.static.success && trial.static.optimality_gap_pct !== null
-                ? `<span style="font-weight:700;" class="${trial.static.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.static.optimality_gap_pct.toFixed(1)}%</span>`
+            const dfsGapText = trial.dfs.success && trial.dfs.optimality_gap_pct !== null
+                ? `<span style="font-weight:700;" class="${trial.dfs.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.dfs.optimality_gap_pct.toFixed(1)}%</span>`
+                : 'N/A (Bloqué)';
+
+            const astarGapText = trial.astar.success && trial.astar.optimality_gap_pct !== null
+                ? `<span style="font-weight:700;" class="${trial.astar.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.astar.optimality_gap_pct.toFixed(1)}%</span>`
                 : 'N/A (Bloqué)';
 
             detailsDiv.innerHTML = `
-                <div><strong>Dyn. Dijkstra</strong>: ${trial.dijkstra.success ? (trial.dijkstra.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
-                <div><strong>Dyn. A*</strong>: ${trial.astar.success ? (trial.astar.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
-                <div><strong>Routage Statique</strong>: ${trial.static.success ? (trial.static.travel_time_sec/60.0).toFixed(1) + ' min' : '<span class="text-error">Bloqué (Isolé)</span>'}</div>
-                <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; margin-top: 0.25rem;">
-                    <strong>Surcoût Statique (Gap)</strong> : ${gapText}
-                </div>
-                <div style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3;">
-                    Le tracé <span style="color: ${colors.static.primary}; font-weight:700">bleu pointillé</span> montre le parcours emprunté par le Routeur Statique. Le tracé <span style="color: ${colors.dijkstra.primary}; font-weight:700">cyan</span> montre l'itinéraire optimal recalculé par Dijkstra.
+                <div><strong>Dijkstra</strong>: ${trial.dijkstra.success ? (trial.dijkstra.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
+                <div><strong>A*</strong>: ${trial.astar.success ? (trial.astar.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'} (Gap: ${astarGapText})</div>
+                <div><strong>DFS</strong>: ${trial.dfs.success ? (trial.dfs.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'} (Gap: ${dfsGapText})</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+                    Itinéraires inspectés : <span style="color: ${colors.dijkstra.primary}; font-weight:700">Cyan (Dijkstra)</span>, <span style="color: ${colors.astar.primary}; font-weight:700">Rose (A*)</span>, <span style="color: ${colors.dfs.primary}; font-weight:700">Violet pointillé (DFS)</span>.
                 </div>
             `;
         }
@@ -2292,10 +1505,11 @@
 
             const mNames = {
                 dijkstra: { label: 'Dijkstra (Optimum)', color: colors.dijkstra.primary },
-                astar: { label: 'A* (Manhattan)', color: colors.astar.primary }
+                astar: { label: 'A* (Manhattan)', color: colors.astar.primary },
+                dfs: { label: 'DFS', color: colors.dfs.primary }
             };
 
-            for (const key of ['dijkstra', 'astar']) {
+            for (const key of ['dijkstra', 'astar', 'dfs']) {
                 const s = data.stats[key];
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -2316,17 +1530,20 @@
             if (charts.gridNodes) charts.gridNodes.destroy();
             if (charts.gridComp) charts.gridComp.destroy();
 
-            // Algorithmic search efficiency comparison (Dijkstra vs A*)
             const ctxNodes = document.getElementById('chart-grid-nodes').getContext('2d');
             charts.gridNodes = new Chart(ctxNodes, {
                 type: 'bar',
                 data: {
-                    labels: ['Dijkstra', 'A* (Manhattan)'],
+                    labels: ['Dijkstra', 'A* (Manhattan)', 'DFS'],
                     datasets: [{
                         label: 'Intersections visitées (Moyenne)',
-                        data: [data.stats.dijkstra.mean_nodes_explored, data.stats.astar.mean_nodes_explored],
-                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)'],
-                        borderColor: ['#00f3ff', '#ec4899'],
+                        data: [
+                            data.stats.dijkstra.mean_nodes_explored, 
+                            data.stats.astar.mean_nodes_explored,
+                            data.stats.dfs.mean_nodes_explored
+                        ],
+                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)', 'rgba(168, 85, 247, 0.55)'],
+                        borderColor: ['#00f3ff', '#ec4899', '#a855f7'],
                         borderWidth: 1.5
                     }]
                 },
@@ -2341,17 +1558,20 @@
                 }
             });
 
-            // Computation time comparison
             const ctxComp = document.getElementById('chart-grid-comp').getContext('2d');
             charts.gridComp = new Chart(ctxComp, {
                 type: 'bar',
                 data: {
-                    labels: ['Dijkstra', 'A* (Manhattan)'],
+                    labels: ['Dijkstra', 'A* (Manhattan)', 'DFS'],
                     datasets: [{
                         label: 'Temps d\'exécution (ms)',
-                        data: [data.stats.dijkstra.mean_computation_ms, data.stats.astar.mean_computation_ms],
-                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)'],
-                        borderColor: ['#00f3ff', '#ec4899'],
+                        data: [
+                            data.stats.dijkstra.mean_computation_ms, 
+                            data.stats.astar.mean_computation_ms,
+                            data.stats.dfs.mean_computation_ms
+                        ],
+                        backgroundColor: ['rgba(0, 243, 255, 0.55)', 'rgba(236, 72, 153, 0.55)', 'rgba(168, 85, 247, 0.55)'],
+                        borderColor: ['#00f3ff', '#ec4899', '#a855f7'],
                         borderWidth: 1.5
                     }]
                 },
@@ -2375,7 +1595,7 @@
             data.trials.forEach(r => {
                 let label = `Essai #${r.trial} - `;
                 if (r.dijkstra.success) {
-                    label += `Succès (longueur: ${r.dijkstra.path_length})`;
+                    label += `Succès (Dij: ${r.dijkstra.path_length} | A*: ${r.astar.path_length} | DFS: ${r.dfs.success ? r.dfs.path_length : 'Bloqué'})`;
                 } else {
                     label += '🚫 Pas de chemin (Percolé)';
                 }
@@ -2402,7 +1622,7 @@
             gridInspectorEl.style.gridTemplateRows = `repeat(${gridMCSizeCache}, 1fr)`;
             gridInspectorEl.style.gridTemplateColumns = `repeat(${gridMCSizeCache}, 1fr)`;
 
-            const cellWidth = Math.min(20, Math.floor(300 / gridMCSizeCache));
+            const cellWidth = Math.min(22, Math.floor(480 / gridMCSizeCache));
             gridInspectorEl.style.width = `${cellWidth * gridMCSizeCache}px`;
             gridInspectorEl.style.height = `${cellWidth * gridMCSizeCache}px`;
 
@@ -2410,19 +1630,40 @@
             const obsSet = new Set(trial.obstacles.map(o => `${o[0]},${o[1]}`));
 
             // Convert path list to lookup set
-            const pathSet = new Set(trial.dijkstra.success ? trial.dijkstra.path.map(p => `${p[0]},${p[1]}`) : []);
+            const dijkstraPathSet = new Set((trial.dijkstra.success && trial.dijkstra.path) ? trial.dijkstra.path.map(p => `${p[0]},${p[1]}`) : []);
+            const astarPathSet = new Set((trial.astar.success && trial.astar.path) ? trial.astar.path.map(p => `${p[0]},${p[1]}`) : []);
+            const dfsPathSet = new Set((trial.dfs.success && trial.dfs.path) ? trial.dfs.path.map(p => `${p[0]},${p[1]}`) : []);
 
             for (let r = 0; r < gridMCSizeCache; r++) {
                 for (let c = 0; c < gridMCSizeCache; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
 
-                    if (r === gridMCStartCache[0] && c === gridMCStartCache[1]) cell.classList.add('start');
-                    else if (r === gridMCEndCache[0] && c === gridMCEndCache[1]) cell.classList.add('end');
-                    else if (obsSet.has(`${r},${c}`)) cell.classList.add('obstacle');
-                    else if (pathSet.has(`${r},${c}`)) {
-                        cell.style.backgroundColor = colors.dijkstra.primary;
-                        cell.style.boxShadow = `0 0 5px ${colors.dijkstra.primary}`;
+                    const coordStr = `${r},${c}`;
+
+                    if (r === gridMCStartCache[0] && c === gridMCStartCache[1]) {
+                        cell.classList.add('start');
+                    } else if (r === gridMCEndCache[0] && c === gridMCEndCache[1]) {
+                        cell.classList.add('end');
+                    } else if (obsSet.has(coordStr)) {
+                        cell.classList.add('obstacle');
+                    } else {
+                        // Add path indicators
+                        if (dijkstraPathSet.has(coordStr)) {
+                            const ind = document.createElement('div');
+                            ind.className = 'path-indicator indicator-dijkstra';
+                            cell.appendChild(ind);
+                        }
+                        if (astarPathSet.has(coordStr)) {
+                            const ind = document.createElement('div');
+                            ind.className = 'path-indicator indicator-astar';
+                            cell.appendChild(ind);
+                        }
+                        if (dfsPathSet.has(coordStr)) {
+                            const ind = document.createElement('div');
+                            ind.className = 'path-indicator indicator-dfs';
+                            cell.appendChild(ind);
+                        }
                     }
 
                     gridInspectorEl.appendChild(cell);
@@ -2434,28 +1675,27 @@
             det.innerHTML = `
                 <div><strong>Dijkstra</strong> : ${trial.dijkstra.success ? trial.dijkstra.path_length + ' pas' : '<span class="text-error">Échec</span>'}</div>
                 <div><strong>A* (Manhattan)</strong> : ${trial.astar.success ? trial.astar.path_length + ' pas' : '<span class="text-error">Échec</span>'}</div>
+                <div><strong>DFS</strong> : ${trial.dfs.success ? trial.dfs.path_length + ' pas' : '<span class="text-error">Échec</span>'}</div>
                 <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:0.5rem; margin-top:0.25rem;">
                     <strong>Explorés (Dijkstra)</strong> : ${trial.dijkstra.nodes_explored} <br>
-                    <strong>Explorés (A*)</strong> : ${trial.astar.nodes_explored}
+                    <strong>Explorés (A*)</strong> : ${trial.astar.nodes_explored} <br>
+                    <strong>Explorés (DFS)</strong> : ${trial.dfs.nodes_explored}
                 </div>
                 <div style="font-size:0.7rem; color:var(--text-muted); line-height:1.3; margin-top:0.5rem;">
-                    Le tracé <span style="color:${colors.dijkstra.primary}; font-weight:700">cyan</span> montre le chemin le plus court calculé. Les blocs sombres représentent les obstacles générés aléatoirement.
+                    Indicateurs de chemin : <span style="color:${colors.dijkstra.primary}; font-weight:700">Bleu (Dijkstra)</span>, <span style="color:${colors.astar.primary}; font-weight:700">Rose (A*)</span>, <span style="color:${colors.dfs.primary}; font-weight:700">Violet (DFS)</span>.
                 </div>
             `;
         }
 
         // --- Window Initialisation ---
         window.addEventListener('load', () => {
-            initOSMArena();
+            initOSMInspectorMap();
             setTimeout(() => {
-                if (osmMapLeft) osmMapLeft.invalidateSize();
-                if (osmMapRight) osmMapRight.invalidateSize();
+                if (osmInspectorMap) osmInspectorMap.invalidateSize();
             }, 200);
         });
 
         window.addEventListener('resize', () => {
-            if (osmMapLeft) osmMapLeft.invalidateSize();
-            if (osmMapRight) osmMapRight.invalidateSize();
             if (osmInspectorMap) osmInspectorMap.invalidateSize();
         });
     </script>

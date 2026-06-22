@@ -291,21 +291,15 @@ def run_osm_monte_carlo(
     mu = params['mu']
     sigma = params['sigma']
     
-    # 3. Pre-calculate Expected Weights for Static Router
-    mean_multiplier = math.exp(mu + (sigma ** 2) / 2.0)
-    expected_graph = {u: {} for u in coords}
+    # 3. Verify that a base path exists (without dynamic closures)
+    base_graph = {u: {} for u in coords}
     for u, v, t_base in active_edges:
-        expected_time = t_base * mean_multiplier
-        if v in expected_graph[u]:
-            expected_graph[u][v] = min(expected_graph[u][v], expected_time)
+        if v in base_graph[u]:
+            base_graph[u][v] = min(base_graph[u][v], t_base)
         else:
-            expected_graph[u][v] = expected_time
-            
-    # Calculate static path once on expected graph
-    static_path, _, _ = run_dijkstra(expected_graph, start_node, end_node)
-    
-    # If static path cannot be found on expected graph, search is impossible
-    if not static_path:
+            base_graph[u][v] = t_base
+    base_path, _, _ = run_dijkstra(base_graph, start_node, end_node)
+    if not base_path:
         return {"error": "Impossible de trouver un itinéraire sur le réseau moyen. Veuillez vérifier les obstacles."}
 
     # 4. Run Monte Carlo Simulation Loop
@@ -336,56 +330,11 @@ def run_osm_monte_carlo(
             realized_graph, coords, start_node, end_node, 'great_circle'
         )
         
-        # --- Model 3: Static Routing (Calculated on expected graph, followed with local reroutes if blocked) ---
-        static_travel_time_sec = 0.0
-        static_path_valid = True
-        static_realized_path = []
+        # --- Model 3: Dynamic DFS ---
+        dyn_dfs_path, dyn_dfs_explored, dyn_dfs_time_ms = run_dfs(realized_graph, start_node, end_node)
         
-        if dyn_dijkstra_path is None:
-            # Graph is disconnected, both models must fail
-            static_travel_time_sec = float('inf')
-            static_path_valid = False
-        else:
-            curr_node = start_node
-            static_realized_path.append(curr_node)
-            
-            # Loop until destination is reached or path is declared failed
-            while curr_node != end_node:
-                # Find the next node in the pre-planned static path
-                next_node = None
-                try:
-                    curr_pos_in_static = static_path.index(curr_node)
-                    if curr_pos_in_static < len(static_path) - 1:
-                        next_node = static_path[curr_pos_in_static + 1]
-                except ValueError:
-                    # Current node is not on the static path (we got rerouted earlier)
-                    pass
-                
-                # If we are on the static path and the next segment is OPEN:
-                if next_node and next_node in realized_graph[curr_node]:
-                    static_travel_time_sec += realized_graph[curr_node][next_node]
-                    curr_node = next_node
-                    static_realized_path.append(curr_node)
-                else:
-                    # Reroute needed! Next edge is blocked or we diverged.
-                    # Find shortest path from current node to end on the realized graph
-                    reroute_path, _, _ = run_dijkstra(realized_graph, curr_node, end_node)
-                    if reroute_path:
-                        # Follow the reroute path to the end
-                        for i in range(len(reroute_path) - 1):
-                            u_r = reroute_path[i]
-                            v_r = reroute_path[i+1]
-                            static_travel_time_sec += realized_graph[u_r][v_r]
-                            static_realized_path.append(v_r)
-                        curr_node = end_node
-                    else:
-                        # Reroute failed, isolated
-                        static_travel_time_sec = float('inf')
-                        static_path_valid = False
-                        break
-                        
-        # Save detailed logs (geometries only for the first 10 trials to prevent huge payloads)
-        include_geom = (trial_idx < 10)
+        # Save detailed logs for all trials to support full inspectability
+        include_geom = True
         
         trial_record = {
             'trial': trial_idx + 1,
@@ -405,17 +354,17 @@ def run_osm_monte_carlo(
                 'computation_ms': dyn_astar_time_ms,
                 'path_geom': get_path_geometry_coords(dyn_astar_path, G_osm) if (include_geom and dyn_astar_path) else None
             },
-            'static': {
-                'success': static_path_valid,
-                'travel_time_sec': static_travel_time_sec if static_path_valid else None,
-                'path_length_meters': get_path_length_meters(static_realized_path, G_osm) if static_path_valid else 0.0,
-                'nodes_explored': 0,  # Pre-calculated static path, no real-time nodes expanded (except small reroutes)
-                'computation_ms': 0.0,
-                'path_geom': get_path_geometry_coords(static_realized_path, G_osm) if (include_geom and static_path_valid) else None
+            'dfs': {
+                'success': dyn_dfs_path is not None,
+                'travel_time_sec': get_path_travel_time(dyn_dfs_path, realized_graph) if dyn_dfs_path else None,
+                'path_length_meters': get_path_length_meters(dyn_dfs_path, G_osm) if dyn_dfs_path else 0.0,
+                'nodes_explored': len(dyn_dfs_explored),
+                'computation_ms': dyn_dfs_time_ms,
+                'path_geom': get_path_geometry_coords(dyn_dfs_path, G_osm) if (include_geom and dyn_dfs_path) else None
             }
         }
         
-        # Calculate optimality gap for Static and A*
+        # Calculate optimality gap for DFS and A*
         if trial_record['dijkstra']['success']:
             opt_time = trial_record['dijkstra']['travel_time_sec']
             
@@ -425,20 +374,20 @@ def run_osm_monte_carlo(
             else:
                 trial_record['astar']['optimality_gap_pct'] = None
                 
-            if trial_record['static']['success']:
-                gap = ((trial_record['static']['travel_time_sec'] - opt_time) / opt_time) * 100.0
-                trial_record['static']['optimality_gap_pct'] = round(gap, 3)
+            if trial_record['dfs']['success']:
+                gap = ((trial_record['dfs']['travel_time_sec'] - opt_time) / opt_time) * 100.0
+                trial_record['dfs']['optimality_gap_pct'] = round(gap, 3)
             else:
-                trial_record['static']['optimality_gap_pct'] = None
+                trial_record['dfs']['optimality_gap_pct'] = None
         else:
             trial_record['astar']['optimality_gap_pct'] = None
-            trial_record['static']['optimality_gap_pct'] = None
+            trial_record['dfs']['optimality_gap_pct'] = None
             
         trials_log.append(trial_record)
 
     # 5. Compute Aggregated Statistics
     stats = {}
-    for model in ['dijkstra', 'astar', 'static']:
+    for model in ['dijkstra', 'astar', 'dfs']:
         times = [r[model]['travel_time_sec'] for r in trials_log if r[model]['success']]
         nodes = [r[model]['nodes_explored'] for r in trials_log if r[model]['success']]
         comps = [r[model]['computation_ms'] for r in trials_log if r[model]['success']]
@@ -480,7 +429,6 @@ def run_osm_monte_carlo(
         }
 
     return {
-        'static_expected_path_geom': get_path_geometry_coords(static_path, G_osm),
         'stats': stats,
         'trials': trials_log
     }
@@ -608,6 +556,50 @@ def solve_grid_astar(
     return path, explored_order, duration_ms
 
 
+def solve_grid_dfs(
+    rows: int,
+    cols: int,
+    start: Tuple[int, int],
+    end: Tuple[int, int],
+    obstacles: Set[Tuple[int, int]]
+) -> Tuple[Optional[List[Tuple[int, int]]], List[Tuple[int, int]], float]:
+    t_start = time.perf_counter()
+    stack = [start]
+    visited = set()
+    parents = {start: None}
+    explored_order = []
+    
+    path = None
+    while stack:
+        current = stack.pop()
+        
+        if current == end:
+            visited.add(current)
+            explored_order.append(current)
+            break
+            
+        if current in visited:
+            continue
+        visited.add(current)
+        explored_order.append(current)
+        
+        for neighbor in get_grid_neighbors(current, rows, cols, obstacles):
+            if neighbor not in visited and neighbor not in parents:
+                parents[neighbor] = current
+                stack.append(neighbor)
+                
+    if end in visited:
+        path = []
+        curr = end
+        while curr is not None:
+            path.append(curr)
+            curr = parents[curr]
+        path.reverse()
+        
+    duration_ms = (time.perf_counter() - t_start) * 1000.0
+    return path, explored_order, duration_ms
+
+
 def run_grid_monte_carlo(
     rows: int,
     cols: int,
@@ -636,6 +628,9 @@ def run_grid_monte_carlo(
         # A* search (Manhattan)
         a_path, a_explored, a_time = solve_grid_astar(rows, cols, start, end, obstacles, 'manhattan')
         
+        # DFS search
+        dfs_path, dfs_explored, dfs_time = solve_grid_dfs(rows, cols, start, end, obstacles)
+        
         trial_record = {
             'trial': trial_idx + 1,
             'dijkstra': {
@@ -643,24 +638,31 @@ def run_grid_monte_carlo(
                 'path_length': len(d_path) if d_path else None,
                 'nodes_explored': len(d_explored),
                 'computation_ms': d_time,
-                'path': d_path if (trial_idx < 10 and d_path) else None
+                'path': d_path if d_path else None
             },
             'astar': {
                 'success': a_path is not None,
                 'path_length': len(a_path) if a_path else None,
                 'nodes_explored': len(a_explored),
                 'computation_ms': a_time,
-                'path': a_path if (trial_idx < 10 and a_path) else None
+                'path': a_path if a_path else None
             },
-            # We also return obstacles list for first 10 trials to display percolation in browser
-            'obstacles': [list(obs) for obs in obstacles] if trial_idx < 10 else None
+            'dfs': {
+                'success': dfs_path is not None,
+                'path_length': len(dfs_path) if dfs_path else None,
+                'nodes_explored': len(dfs_explored),
+                'computation_ms': dfs_time,
+                'path': dfs_path if dfs_path else None
+            },
+            # We also return obstacles list to display percolation in browser
+            'obstacles': [list(obs) for obs in obstacles]
         }
         
         trials_log.append(trial_record)
         
     # Stats aggregation
     stats = {}
-    for model in ['dijkstra', 'astar']:
+    for model in ['dijkstra', 'astar', 'dfs']:
         successes = [r[model]['path_length'] for r in trials_log if r[model]['success']]
         nodes = [r[model]['nodes_explored'] for r in trials_log if r[model]['success']]
         comps = [r[model]['computation_ms'] for r in trials_log if r[model]['success']]

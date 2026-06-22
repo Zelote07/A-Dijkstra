@@ -588,7 +588,6 @@
         </div>
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab('tab-isochrone')"><i class="fa-solid fa-clock-rotate-left"></i> Isochrones (Accessibilité)</button>
-            <button class="tab-btn" onclick="switchTab('tab-poi')"><i class="fa-solid fa-location-crosshairs"></i> Recherche Multi-Cibles</button>
             <button class="tab-btn" onclick="switchTab('tab-eco')"><i class="fa-solid fa-leaf"></i> Routage Éco-Énergétique</button>
             <button class="tab-btn" onclick="switchTab('tab-dfs')"><i class="fa-solid fa-network-wired"></i> Connectivité (DFS)</button>
             <a href="/theorie" class="tab-btn" style="text-decoration: none; border: 1px dashed rgba(168, 85, 247, 0.4); color: var(--astar-primary);"><i class="fa-solid fa-book"></i> Rapport Théorique</a>
@@ -655,79 +654,45 @@
                         </p>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- ================================================================= -->
-    <!-- TAB 2: RECHERCHE MULTI-CIBLES (POI LE PLUS PROCHE) -->
-    <!-- ================================================================= -->
-    <div id="tab-poi" class="tab-content">
-        <div class="simulation-container">
-            <div class="sidebar">
-                <h3 class="section-title"><i class="fa-solid fa-location-crosshairs"></i> Recherche Multi-Cibles</h3>
-                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
-                    Double-cliquez sur la carte pour repositionner le <strong>Départ</strong>. L'algorithme recherche la <strong>station-service</strong> la plus proche en temps de trajet réel.
-                </p>
-
-                <button class="btn btn-primary" onclick="runNearestPOI()"><i class="fa-solid fa-magnifying-glass"></i> Trouver la station la plus proche</button>
-                <button class="btn" onclick="regeneratePOIs()"><i class="fa-solid fa-shuffle"></i> Régénérer les stations</button>
-                <button class="btn" onclick="clearPOISim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
-
-                <div class="educational-card">
-                    <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
-                    <h4>Le Besoin Métier</h4>
-                    <p>Trouver le point d'intérêt (PoI) le plus proche (ex: la station-service disponible) parmi plusieurs candidats dispersés dans la ville.</p>
-                    
-                    <h4>Pourquoi A* est pénalisé ?</h4>
-                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> <strong>Pénalité à N passes.</strong> A* ne gère qu'un point A vers un point B unique. Pour trouver la station la plus proche parmi 5 candidats, A* doit s'exécuter 5 fois (ou concevoir une heuristique complexe), multipliant le temps de calcul.</p>
-                    
-                    <h4>Le Pouvoir de Dijkstra</h4>
-                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Arrêt précoce en une passe.</strong> Dijkstra s'étend de manière uniforme. Dès que la recherche extrait <em>n'importe lequel</em> des POIs de la file de priorité, ce POI est mathématiquement garanti d'être le plus proche. La recherche s'arrête net, en une seule exécution.</p>
-                </div>
-            </div>
-
-            <div class="workspace">
-                <div class="map-panel">
-                    <div class="map-header">
-                        <div class="map-title"><i class="fa-solid fa-gas-pump" style="color: var(--poi-color);"></i> Plus proche Station-Service</div>
-                        <div class="stats-badge-container">
-                            <div class="stats-badge"><i class="fa-solid fa-hourglass-start" style="color: var(--dijkstra-primary);"></i> <span id="poi-stat-duration">- min</span></div>
-                            <div class="stats-badge"><i class="fa-solid fa-bolt text-warning"></i> <span id="poi-stat-time">- ms</span></div>
-                        </div>
-                    </div>
-                    <div class="map-wrapper">
-                        <div id="map-poi" class="leaflet-map"></div>
-                    </div>
-                </div>
-
-                <!-- Comparaison Table -->
-                <div class="stats-table-card">
-                    <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Comparaison de l'effort d'exploration</h4>
+                <!-- Comparison Table -->
+                <div class="stats-table-card" style="margin-top: 1.5rem;">
+                    <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted)"><i class="fa-solid fa-calculator"></i> Comparaison avec A* et DFS</h4>
                     <table class="stats-table">
                         <thead>
                             <tr>
                                 <th>Algorithme</th>
-                                <th>Nombre de calculs (Passes)</th>
-                                <th>Nœuds explorés (Total)</th>
+                                <th>Temps de calcul</th>
+                                <th>Nœuds explorés</th>
+                                <th>Recherche de Zone (Multi-Cibles)</th>
                                 <th>Garantie d'optimalité</th>
-                                <th>Efficacité relative</th>
+                                <th>Évaluation</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td style="font-weight: 700; color: var(--dijkstra-primary);">Dijkstra (Multi-Cibles)</td>
-                                <td>1 passe unique</td>
-                                <td id="poi-res-dijkstra-nodes">-</td>
+                            <tr style="border-left: 3px solid var(--dijkstra-primary);">
+                                <td style="font-weight: 700; color: var(--dijkstra-primary);">Dijkstra</td>
+                                <td id="iso-res-dijkstra-time" style="font-weight: bold; color: var(--start-color);">- ms</td>
+                                <td id="iso-res-dijkstra-nodes">-</td>
+                                <td style="color: var(--start-color); font-weight: bold;">Oui (Exploration uniforme)</td>
                                 <td style="color: var(--start-color);">100% Garantie</td>
-                                <td style="font-weight: bold; color: var(--start-color);">Optimale (100%)</td>
+                                <td style="font-weight: bold; color: var(--start-color);"><i class="fa-solid fa-circle-check"></i> Idéal (Victorieux)</td>
                             </tr>
-                            <tr>
-                                <td style="font-weight: 700; color: var(--astar-primary);">A* Classique (Individuel)</td>
-                                <td id="poi-res-astar-runs">- passes</td>
-                                <td id="poi-res-astar-nodes">-</td>
-                                <td style="color: var(--start-color);">100% Garantie</td>
-                                <td id="poi-res-efficiency" style="font-weight: bold; color: var(--end-color);">-</td>
+                            <tr style="border-left: 3px solid var(--astar-primary);">
+                                <td style="font-weight: 700; color: var(--astar-primary);">A* (Heuristique)</td>
+                                <td style="color: var(--text-muted);">N/A</td>
+                                <td>-</td>
+                                <td style="color: var(--end-color); font-weight: bold;">Non (Cible unique requise)</td>
+                                <td style="color: var(--end-color);">Impossible</td>
+                                <td style="font-weight: bold; color: var(--end-color);"><i class="fa-solid fa-circle-xmark"></i> Incompatible</td>
+                            </tr>
+                            <tr style="border-left: 3px solid var(--dfs-primary);">
+                                <td style="font-weight: 700; color: var(--dfs-primary);">DFS (Profond)</td>
+                                <td style="color: var(--text-muted);">N/A</td>
+                                <td>-</td>
+                                <td style="color: var(--end-color); font-weight: bold;">Non (Exploration linéaire)</td>
+                                <td style="color: var(--end-color);">Non</td>
+                                <td style="font-weight: bold; color: var(--end-color);"><i class="fa-solid fa-circle-xmark"></i> Inadapté</td>
                             </tr>
                         </tbody>
                     </table>
@@ -735,6 +700,8 @@
             </div>
         </div>
     </div>
+
+
 
     <!-- ================================================================= -->
     <!-- TAB 3: ROUTAGE ECO-ENERGETIQUE (MONTAGNE & DENIVELES) -->
@@ -751,7 +718,7 @@
                 <button class="btn" onclick="clearEcoSim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
 
                 <div class="educational-card">
-                    <span class="badge badge-dijkstra" style="background: rgba(59, 130, 246, 0.15); color: var(--static-primary); border-color: rgba(59, 130, 246, 0.3);">Modèles physiques</span>
+                    <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
                     <h4>Le Besoin Métier</h4>
                     <p>Pour un véhicule électrique en montagne, monter consomme énormément, tandis que descendre régénère la batterie (freinage régénératif). Le trajet le plus économe en Wh n'est pas le plus court en kilomètres.</p>
                     
@@ -770,6 +737,7 @@
                         <div class="legend-row">
                             <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra (Énergie)</div>
                             <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A* (Géométrique)</div>
+                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dfs-primary);"></div>DFS (Non-Optimal)</div>
                         </div>
                     </div>
                     <div class="map-wrapper">
@@ -799,8 +767,9 @@
                             <thead>
                                 <tr>
                                     <th>Métrique</th>
-                                    <th style="color: var(--dijkstra-primary);">Dijkstra</th>
-                                    <th style="color: var(--astar-primary);">A*</th>
+                                    <th style="color: var(--dijkstra-primary);">Dijkstra (Énergie)</th>
+                                    <th style="color: var(--astar-primary);">A* (Heuristique)</th>
+                                    <th style="color: var(--dfs-primary);">DFS (Non-Optimal)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -808,21 +777,25 @@
                                     <td>Énergie consommée</td>
                                     <td id="eco-res-dijkstra-energy" style="font-weight: 700;">- Wh</td>
                                     <td id="eco-res-astar-energy" style="font-weight: 700;">- Wh</td>
+                                    <td id="eco-res-dfs-energy" style="font-weight: 700;">- Wh</td>
                                 </tr>
                                 <tr>
                                     <td>Distance physique</td>
                                     <td id="eco-res-dijkstra-dist">- m</td>
                                     <td id="eco-res-astar-dist">- m</td>
+                                    <td id="eco-res-dfs-dist">- m</td>
                                 </tr>
                                 <tr>
                                     <td>Nœuds explorés</td>
                                     <td id="eco-res-dijkstra-nodes">-</td>
                                     <td id="eco-res-astar-nodes">-</td>
+                                    <td id="eco-res-dfs-nodes">-</td>
                                 </tr>
                                 <tr>
                                     <td>Temps de calcul</td>
                                     <td id="eco-res-dijkstra-time">- ms</td>
                                     <td id="eco-res-astar-time">- ms</td>
+                                    <td id="eco-res-dfs-time">- ms</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -847,7 +820,7 @@
                 <button class="btn" onclick="clearDfsSim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
 
                 <div class="educational-card">
-                    <span class="badge badge-dfs">DFS : Ultra-Léger / Non-Optimal</span>
+                    <span class="badge badge-dfs">DFS : Victorieux</span>
                     <h4>Le Besoin Métier</h4>
                     <p>Pour le ping réseau, la garbage collection ou la résolution de labyrinthe, l'objectif est de vérifier <em>si</em> une connexion existe, le plus rapidement possible. La longueur ou le coût du chemin importe peu.</p>
                     
@@ -940,7 +913,6 @@
         let markers = {};
         let layers = {
             isochrone: [],
-            poi: [],
             eco: [],
             dfs: []
         };
@@ -949,14 +921,10 @@
 
         // Scenario Locations in Aix-en-Provence
         let startLatLngIso = [43.5297, 5.4474];
-        let startLatLngPoi = [43.5260, 5.4450];
         let startLatLngEco = [43.5180, 5.4320];
         let endLatLngEco = [43.5550, 5.4790];
         let startLatLngDfs = [43.5297, 5.4385];
         let endLatLngDfs = [43.5350, 5.4590];
-
-        // POI Coordinates (Gas stations in Aix-en-Provence)
-        let poiList = [];
 
         // Global colors
         const colors = {
@@ -984,17 +952,7 @@
                 clearIsochrone();
             });
 
-            // 2. POI Map
-            maps.poi = L.map('map-poi', { doubleClickZoom: false }).setView(startLatLngPoi, 14);
-            L.tileLayer(tileUrl, { attribution }).addTo(maps.poi);
-            setupStartMarker('poi', startLatLngPoi);
-            generatePOIs(false); // Generate initial set of POIs without redrawing if not active
-            maps.poi.on('dblclick', (e) => {
-                if (isAnimating) return;
-                startLatLngPoi = [e.latlng.lat, e.latlng.lng];
-                setupStartMarker('poi', startLatLngPoi);
-                clearPOISim();
-            });
+
 
             // 3. Eco-routing Map
             maps.eco = L.map('map-eco', { doubleClickZoom: false }).setView([43.5350, 5.4500], 13);
@@ -1057,9 +1015,6 @@
                 if (scenario === 'isochrone') {
                     startLatLngIso = coords;
                     clearIsochrone();
-                } else if (scenario === 'poi') {
-                    startLatLngPoi = coords;
-                    clearPOISim();
                 } else if (scenario === 'eco') {
                     startLatLngEco = coords;
                     clearEcoSim();
@@ -1070,7 +1025,6 @@
             });
             markers[scenario + '_start'].on('dragend', () => {
                 if (scenario === 'isochrone') runIsochrone();
-                else if (scenario === 'poi') runNearestPOI();
                 else if (scenario === 'eco') runEcoRouting();
                 else if (scenario === 'dfs') runDfsConnectivity();
             });
@@ -1122,10 +1076,6 @@
             // Invalidate Map sizes (Leaflet requirement)
             setTimeout(() => {
                 if (tabId === 'tab-isochrone') maps.isochrone.invalidateSize();
-                else if (tabId === 'tab-poi') {
-                    maps.poi.invalidateSize();
-                    drawPOIs();
-                }
                 else if (tabId === 'tab-eco') maps.eco.invalidateSize();
                 else if (tabId === 'tab-dfs') maps.dfs.invalidateSize();
             }, 50);
@@ -1152,6 +1102,8 @@
             layers.isochrone = [];
             document.getElementById('iso-stat-nodes').textContent = '- nœuds atteints';
             document.getElementById('iso-stat-time').textContent = '- ms';
+            document.getElementById('iso-res-dijkstra-time').textContent = '- ms';
+            document.getElementById('iso-res-dijkstra-nodes').textContent = '-';
             document.getElementById('isochrone-stations-list').innerHTML = `
                 <p style="font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem; grid-column: 1 / -1; text-align: center;">
                     Lancez le calcul pour afficher les stations-service accessibles.
@@ -1225,6 +1177,9 @@
                     document.getElementById('iso-stat-nodes').textContent = `${totalNodes} nœuds atteints`;
                     document.getElementById('iso-stat-time').textContent = `${serverTime.toFixed(1)} ms`;
                     
+                    document.getElementById('iso-res-dijkstra-time').textContent = `${serverTime.toFixed(1)} ms`;
+                    document.getElementById('iso-res-dijkstra-nodes').textContent = totalNodes;
+                    
                     // Display the stations list and map markers
                     displayIsochroneStations(stations, timeLimit);
                 }
@@ -1292,174 +1247,7 @@
             }
         }
 
-        // =================================================================
-        // SCENARIO 2: MULTI-POI
-        // =================================================================
-        function generatePOIs(redraw = true) {
-            // Generate 5 static-ish POIs in Aix-en-Provence coordinates
-            // around the start node
-            const baseLat = 43.5260;
-            const baseLon = 5.4450;
-            poiList = [
-                [43.5255, 5.4385], // Station A
-                [43.5180, 5.4620], // Station B
-                [43.5350, 5.4290], // Station C
-                [43.5410, 5.4590], // Station D
-                [43.5290, 5.4510]  // Station E
-            ];
-            
-            if (redraw) {
-                clearPOISim();
-                drawPOIs();
-            }
-        }
 
-        function drawPOIs(winningIndex = null) {
-            // Clear current POI markers from layers.poi
-            layers.poi.forEach(l => {
-                if (l instanceof L.Marker && l !== markers.poi_start) {
-                    maps.poi.removeLayer(l);
-                }
-            });
-            
-            poiList.forEach((poi, idx) => {
-                const isWinner = idx === winningIndex;
-                const iconHTML = isWinner 
-                    ? `<i class="fa-solid fa-gas-pump" style="color: ${colors.start}; text-shadow: 0 0 10px ${colors.start};"></i> <span style="color:${colors.start}; font-weight:800;">GAGNANT (N°${idx+1})</span>`
-                    : `<i class="fa-solid fa-gas-pump" style="color: ${colors.poi};"></i> Station N°${idx+1}`;
-                
-                const icon = L.divIcon({
-                    className: 'marker-label',
-                    html: iconHTML,
-                    iconSize: isWinner ? [130, 20] : [90, 20],
-                    iconAnchor: isWinner ? [65, 20] : [45, 20]
-                });
-                
-                const m = L.marker(poi, { icon: icon }).addTo(maps.poi);
-                layers.poi.push(m);
-            });
-        }
-
-        function clearPOISim() {
-            layers.poi.forEach(l => {
-                if (l !== markers.poi_start) maps.poi.removeLayer(l);
-            });
-            layers.poi = [];
-            // Redraw basic POIs
-            drawPOIs();
-            document.getElementById('poi-stat-duration').textContent = '- min';
-            document.getElementById('poi-stat-time').textContent = '- ms';
-            document.getElementById('poi-res-dijkstra-nodes').textContent = '-';
-            document.getElementById('poi-res-astar-runs').textContent = '-';
-            document.getElementById('poi-res-astar-nodes').textContent = '-';
-            document.getElementById('poi-res-efficiency').textContent = '-';
-        }
-
-        function regeneratePOIs() {
-            if (isAnimating) return;
-            // Generate randomized POIs around start node
-            const [sLat, sLon] = startLatLngPoi;
-            poiList = [];
-            for (let i = 0; i < 5; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = 0.006 + Math.random() * 0.015; // random distance
-                poiList.push([
-                    sLat + Math.sin(angle) * dist,
-                    sLon + Math.cos(angle) * dist * 1.3
-                ]);
-            }
-            clearPOISim();
-        }
-
-        async function runNearestPOI() {
-            if (isAnimating) return;
-            stopAllAnimations();
-            clearPOISim();
-            showOverlay();
-
-            try {
-                const response = await fetch('/api/scenarios/nearest_poi', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        start: startLatLngPoi
-                    })
-                });
-
-                if (!response.ok) throw new Error("Erreur serveur.");
-                const data = await response.json();
-                hideOverlay();
-
-                // Snap start node coords
-                startLatLngPoi = data.meta.start_coords;
-                setupStartMarker('poi', startLatLngPoi);
-
-                // Update gas station candidates dynamically from response
-                if (data.pois) {
-                    poiList = data.pois;
-                }
-
-                animatePOIResults(data);
-            } catch (err) {
-                hideOverlay();
-                alert(err.message);
-            }
-        }
-
-        function animatePOIResults(data) {
-            isAnimating = true;
-            let idx = 0;
-            const explored = data.explored;
-            const batchSize = Math.max(1, Math.floor(explored.length / 50));
-
-            const timer = setInterval(() => {
-                for (let i = 0; i < batchSize; i++) {
-                    if (idx >= explored.length) break;
-                    const node = explored[idx];
-                    const m = L.circleMarker([node[0], node[1]], {
-                        radius: 3,
-                        color: colors.poi,
-                        weight: 1,
-                        fillColor: colors.poi,
-                        fillOpacity: 0.25
-                    }).addTo(maps.poi);
-                    layers.poi.push(m);
-                    idx++;
-                }
-
-                if (idx >= explored.length) {
-                    clearInterval(timer);
-                    isAnimating = false;
-
-                    // Draw winning path
-                    if (data.path) {
-                        const p = L.polyline(data.path, {
-                            color: colors.start,
-                            weight: 5,
-                            opacity: 0.85
-                        }).addTo(maps.poi);
-                        layers.poi.push(p);
-                    }
-
-                    // Update markers with winner highlighted
-                    drawPOIs(data.closest_poi_index);
-
-                    // Write statistics
-                    document.getElementById('poi-stat-duration').textContent = `${data.travel_time_mins.toFixed(1)} min`;
-                    document.getElementById('poi-stat-time').textContent = `${data.stats.duration_ms.toFixed(1)} ms`;
-                    
-                    document.getElementById('poi-res-dijkstra-nodes').textContent = data.stats.dijkstra_explored;
-                    document.getElementById('poi-res-astar-runs').textContent = data.stats.astar_runs;
-                    document.getElementById('poi-res-astar-nodes').textContent = data.stats.astar_explored_total;
-
-                    // Compute efficiency gain
-                    const ratio = (data.stats.astar_explored_total / data.stats.dijkstra_explored).toFixed(1);
-                    document.getElementById('poi-res-efficiency').textContent = `Pénalisé (${ratio}x plus de nœuds)`;
-                }
-            }, 15);
-
-            animationTimers.push(timer);
-        }
 
         // =================================================================
         // SCENARIO 3: ECO-ROUTING
@@ -1476,12 +1264,16 @@
 
             document.getElementById('eco-res-dijkstra-energy').textContent = '- Wh';
             document.getElementById('eco-res-astar-energy').textContent = '- Wh';
+            document.getElementById('eco-res-dfs-energy').textContent = '- Wh';
             document.getElementById('eco-res-dijkstra-dist').textContent = '- m';
             document.getElementById('eco-res-astar-dist').textContent = '- m';
+            document.getElementById('eco-res-dfs-dist').textContent = '- m';
             document.getElementById('eco-res-dijkstra-nodes').textContent = '-';
             document.getElementById('eco-res-astar-nodes').textContent = '-';
+            document.getElementById('eco-res-dfs-nodes').textContent = '-';
             document.getElementById('eco-res-dijkstra-time').textContent = '- ms';
             document.getElementById('eco-res-astar-time').textContent = '- ms';
+            document.getElementById('eco-res-dfs-time').textContent = '- ms';
         }
 
         async function runEcoRouting() {
@@ -1521,10 +1313,14 @@
             isAnimating = true;
             const dExplored = data.dijkstra.explored;
             const aExplored = data.astar.explored;
+            const dfsExplored = data.dfs.explored;
             
-            let dIdx = 0, aIdx = 0;
+            let dIdx = 0, aIdx = 0, dfsIdx = 0;
             const dBatch = Math.max(1, Math.floor(dExplored.length / 50));
             const aBatch = Math.max(1, Math.floor(aExplored.length / 50));
+            const dfsBatch = Math.max(1, Math.floor(dfsExplored.length / 50));
+
+            const searchMarkers = [];
 
             const timer = setInterval(() => {
                 let active = false;
@@ -1540,6 +1336,7 @@
                             fillOpacity: 0.15
                         }).addTo(maps.eco);
                         layers.eco.push(m);
+                        searchMarkers.push(m);
                         dIdx++;
                         active = true;
                     }
@@ -1556,7 +1353,25 @@
                             fillOpacity: 0.15
                         }).addTo(maps.eco);
                         layers.eco.push(m);
+                        searchMarkers.push(m);
                         aIdx++;
+                        active = true;
+                    }
+                }
+
+                // Animate DFS nodes (violet)
+                for (let i = 0; i < dfsBatch; i++) {
+                    if (dfsIdx < dfsExplored.length) {
+                        const m = L.circleMarker([dfsExplored[dfsIdx][0], dfsExplored[dfsIdx][1]], {
+                            radius: 3,
+                            color: colors.dfs,
+                            weight: 1,
+                            fillColor: colors.dfs,
+                            fillOpacity: 0.15
+                        }).addTo(maps.eco);
+                        layers.eco.push(m);
+                        searchMarkers.push(m);
+                        dfsIdx++;
                         active = true;
                     }
                 }
@@ -1564,6 +1379,10 @@
                 if (!active) {
                     clearInterval(timer);
                     isAnimating = false;
+
+                    // Remove all animated/explored node markers from the map so only the clean final paths are visible
+                    searchMarkers.forEach(m => maps.eco.removeLayer(m));
+                    layers.eco = layers.eco.filter(l => !searchMarkers.includes(l));
 
                     // Draw paths
                     if (data.astar.path) {
@@ -1584,28 +1403,41 @@
                         layers.eco.push(p);
                     }
 
+                    if (data.dfs.path) {
+                        const p = L.polyline(data.dfs.path, {
+                            color: colors.dfs,
+                            weight: 5,
+                            opacity: 0.85
+                        }).addTo(maps.eco);
+                        layers.eco.push(p);
+                    }
+
                     // Write stats
                     document.getElementById('eco-res-dijkstra-energy').textContent = `${data.dijkstra.energy_wh.toFixed(0)} Wh`;
                     document.getElementById('eco-res-astar-energy').textContent = `${data.astar.energy_wh.toFixed(0)} Wh`;
+                    document.getElementById('eco-res-dfs-energy').textContent = `${data.dfs.energy_wh.toFixed(0)} Wh`;
                     
                     document.getElementById('eco-res-dijkstra-dist').textContent = `${data.dijkstra.length_m.toFixed(0)} m`;
                     document.getElementById('eco-res-astar-dist').textContent = `${data.astar.length_m.toFixed(0)} m`;
+                    document.getElementById('eco-res-dfs-dist').textContent = `${data.dfs.length_m.toFixed(0)} m`;
                     
                     document.getElementById('eco-res-dijkstra-nodes').textContent = data.dijkstra.explored_count;
                     document.getElementById('eco-res-astar-nodes').textContent = data.astar.explored_count;
+                    document.getElementById('eco-res-dfs-nodes').textContent = data.dfs.explored_count;
                     
                     document.getElementById('eco-res-dijkstra-time').textContent = `${data.dijkstra.duration_ms.toFixed(1)} ms`;
                     document.getElementById('eco-res-astar-time').textContent = `${data.astar.duration_ms.toFixed(1)} ms`;
+                    document.getElementById('eco-res-dfs-time').textContent = `${data.dfs.duration_ms.toFixed(1)} ms`;
 
                     // Draw SVGs
-                    drawElevationProfile(data.dijkstra.profile, data.astar.profile);
+                    drawElevationProfile(data.dijkstra.profile, data.astar.profile, data.dfs.profile);
                 }
             }, 20);
 
             animationTimers.push(timer);
         }
 
-        function drawElevationProfile(dijkstraProfile, astarProfile) {
+        function drawElevationProfile(dijkstraProfile, astarProfile, dfsProfile) {
             const svg = document.getElementById('elevation-svg');
             if (!svg) return;
             svg.innerHTML = '';
@@ -1615,7 +1447,7 @@
             const padding = { top: 15, right: 15, bottom: 25, left: 45 };
 
             // Find scale bounds
-            const allPts = [...dijkstraProfile, ...astarProfile];
+            const allPts = [...dijkstraProfile, ...astarProfile, ...dfsProfile];
             const maxDist = Math.max(...allPts.map(p => p.distance), 1);
             const elevations = allPts.map(p => p.elevation);
             const maxElev = Math.max(...elevations, 1200);
@@ -1666,6 +1498,7 @@
 
             const dD = makeD(dijkstraProfile);
             const aD = makeD(astarProfile);
+            const dfsD = makeD(dfsProfile);
 
             // Draw paths
             if (aD) {
@@ -1677,6 +1510,11 @@
                 const dArea = makeAreaD(dijkstraProfile, dD);
                 elements += `<path d="${dArea}" fill="rgba(0, 243, 255, 0.03)" />`;
                 elements += `<path d="${dD}" fill="none" stroke="${colors.dijkstra}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+            }
+            if (dfsD) {
+                const dfsArea = makeAreaD(dfsProfile, dfsD);
+                elements += `<path d="${dfsArea}" fill="rgba(168, 85, 247, 0.03)" />`;
+                elements += `<path d="${dfsD}" fill="none" stroke="${colors.dfs}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
             }
 
             svg.innerHTML = elements;

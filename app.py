@@ -520,137 +520,7 @@ def api_scenarios_isochrone():
     })
 
 
-@app.route('/api/scenarios/nearest_poi', methods=['POST'])
-def api_scenarios_nearest_poi():
-    """
-    Finds the nearest Point of Interest (POI) among a set of candidates using multi-target Dijkstra.
-    Stops immediately when the first POI is extracted.
-    Candidates are dynamically selected as the 5 closest gas stations from the global GAS_STATIONS list.
-    """
-    data = request.get_json() or {}
-    start_ll = data.get('start')  # [lat, lon]
-    
-    if not start_ll:
-        return jsonify({"error": "Départ requis."}), 400
-        
-    start_node = str(ox.nearest_nodes(G_raw, start_ll[1], start_ll[0]))
-    
-    # Dynamically find 5 closest gas stations based on starting coordinates
-    from monte_carlo_engine import haversine_distance
-    start_coord = (start_ll[0], start_ll[1])
-    sorted_gas_stations = sorted(GAS_STATIONS, key=lambda gs: haversine_distance(start_coord, gs['coords']))
-    pois_ll = [gs['coords'] for gs in sorted_gas_stations[:5]]
-    
-    # Map POIs to nearest nodes
-    poi_nodes_set = set()
-    poi_node_to_index = {}
-    for idx, gs in enumerate(sorted_gas_stations[:5]):
-        p_node = gs['node']
-        poi_nodes_set.add(p_node)
-        poi_node_to_index[p_node] = idx
-        
-    # Build graph with travel times
-    graph_time = {}
-    coords = {}
-    for n, n_data in G.nodes(data=True):
-        coords[n] = (n_data['y'], n_data['x'])
-        graph_time[n] = {}
-        
-    for u, v, e_data in G.edges(data=True):
-        length = e_data.get('length', 1.0)
-        speed_kph = 50.0
-        if 'maxspeed' in e_data:
-            try:
-                ms = e_data['maxspeed']
-                if isinstance(ms, list):
-                    ms = ms[0]
-                ms_clean = str(ms).replace(' km/h', '').replace(' mph', '').strip()
-                val = float(ms_clean)
-                if 'mph' in str(ms):
-                    speed_kph = val * 1.60934
-                else:
-                    speed_kph = val
-            except:
-                pass
-        speed_ms = speed_kph / 3.6
-        t_base = length / speed_ms
-        
-        if v in graph_time[u]:
-            graph_time[u][v] = min(graph_time[u][v], t_base)
-        else:
-            graph_time[u][v] = t_base
-            
-    # Dijkstra search (Multi-target stop condition)
-    pq = [(0.0, start_node)]  # (cumulative_time, node)
-    distances = {start_node: 0.0}
-    parents = {start_node: None}
-    visited = set()
-    explored_order = []
-    
-    closest_poi_node = None
-    t_start = time.perf_counter()
-    
-    while pq:
-        curr_time, current = heapq.heappop(pq)
-        
-        # Stop condition: we found the nearest POI
-        if current in poi_nodes_set:
-            closest_poi_node = current
-            explored_order.append(current)
-            break
-            
-        if current in visited:
-            continue
-        visited.add(current)
-        explored_order.append(current)
-        
-        for neighbor, edge_time in graph_time.get(current, {}).items():
-            if neighbor in visited:
-                continue
-            new_time = curr_time + edge_time
-            if new_time < distances.get(neighbor, float('inf')):
-                distances[neighbor] = new_time
-                parents[neighbor] = current
-                heapq.heappush(pq, (new_time, neighbor))
-                
-    duration_ms = (time.perf_counter() - t_start) * 1000.0
-    
-    # Path reconstruction
-    path = []
-    if closest_poi_node:
-        curr = closest_poi_node
-        while curr is not None:
-            path.append(curr)
-            curr = parents[curr]
-        path.reverse()
-        
-    # Simulate A* comparison (must run A* N times to find nearest POI)
-    total_astar_explored = 0
-    for p_node in poi_nodes_set:
-        _, a_explored, _ = run_astar(graph_time, coords, start_node, p_node, 'great_circle')
-        total_astar_explored += len(a_explored)
-        
-    path_geom = get_path_geometry_coords(path, G) if path else None
-    
-    return jsonify({
-        'path': path_geom,
-        'explored': [[coords[n][0], coords[n][1]] for n in explored_order if n in coords],
-        'closest_poi_index': poi_node_to_index.get(closest_poi_node) if closest_poi_node else None,
-        'travel_time_mins': round(distances[closest_poi_node] / 60.0, 2) if closest_poi_node else 0.0,
-        'path_length_meters': get_path_length_meters(path, G) if path else 0.0,
-        'pois': pois_ll,
-        'stats': {
-            'dijkstra_explored': len(explored_order),
-            'astar_explored_total': total_astar_explored,
-            'dijkstra_runs': 1,
-            'astar_runs': len(poi_nodes_set),
-            'duration_ms': duration_ms
-        },
-        'meta': {
-            'start_coords': [G.nodes[start_node]['y'], G.nodes[start_node]['x']],
-            'closest_poi_coords': [coords[closest_poi_node][0], coords[closest_poi_node][1]] if closest_poi_node else None
-        }
-    })
+
 
 
 @app.route('/api/scenarios/eco_routing', methods=['POST'])
@@ -788,9 +658,11 @@ def api_scenarios_eco_routing():
     # Run searches
     d_path, d_explored, d_time = run_dijkstra(graph_energy, start_node, end_node)
     a_path, a_explored, a_time = run_astar_energy(start_node, end_node)
+    dfs_path, dfs_explored, dfs_time = run_dfs(graph_energy, start_node, end_node)
     
     d_geom = get_path_geometry_coords(d_path, G) if d_path else None
     a_geom = get_path_geometry_coords(a_path, G) if a_path else None
+    dfs_geom = get_path_geometry_coords(dfs_path, G) if dfs_path else None
     
     return jsonify({
         'dijkstra': {
@@ -810,6 +682,15 @@ def api_scenarios_eco_routing():
             'explored_count': len(a_explored),
             'duration_ms': a_time,
             'profile': get_path_profile(a_path)
+        },
+        'dfs': {
+            'path': dfs_geom,
+            'explored': [[coords[n][0], coords[n][1]] for n in dfs_explored if n in coords],
+            'energy_wh': round(get_path_travel_time(dfs_path, graph_energy), 1) if dfs_path else 0.0,
+            'length_m': round(get_path_length_meters(dfs_path, G), 1) if dfs_path else 0.0,
+            'explored_count': len(dfs_explored),
+            'duration_ms': dfs_time,
+            'profile': get_path_profile(dfs_path)
         },
         'meta': {
             'start_coords': [G.nodes[start_node]['y'], G.nodes[start_node]['x']],
