@@ -583,6 +583,96 @@
         .leaflet-bar a:hover {
             background-color: #1e293b !important;
         }
+
+        /* Styles pour les grilles interactives (Tab DFS) */
+        .grid {
+            display: grid;
+            gap: 1px;
+            background-color: rgba(255, 255, 255, 0.04);
+            user-select: none;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background-color: rgba(30, 41, 59, 0.15);
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            cursor: pointer;
+            border-radius: 1px;
+            position: relative;
+        }
+
+        .cell:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .cell.start {
+            background-color: #10b981 !important;
+            box-shadow: 0 0 10px #10b981;
+            animation: nodePulse 0.5s ease-out;
+            z-index: 5;
+        }
+
+        .cell.end {
+            background-color: #ef4444 !important;
+            box-shadow: 0 0 10px #ef4444;
+            animation: nodePulse 0.5s ease-out;
+            z-index: 5;
+        }
+
+        .cell.obstacle {
+            background-color: #1e293b !important;
+            animation: wallCreate 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Animations d'exploration et de chemin */
+        .cell.visited-dfs { animation: visitedDfs 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .cell.path-dfs { animation: pathDfs 0.4s ease-in-out forwards; }
+
+        .cell.visited-dijkstra { animation: visitedDijkstra 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .cell.path-dijkstra { animation: pathDijkstra 0.4s ease-in-out forwards; }
+
+        .cell.visited-astar { animation: visitedAstar 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .cell.path-astar { animation: pathAstar 0.4s ease-in-out forwards; }
+
+        @keyframes nodePulse {
+            0% { transform: scale(0.6); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1.0); }
+        }
+
+        @keyframes wallCreate {
+            0% { transform: scale(0.5); }
+            100% { transform: scale(1.0); }
+        }
+
+        @keyframes visitedDfs {
+            0% { transform: scale(0.3); border-radius: 100%; }
+            100% { transform: scale(1.0); background-color: rgba(168, 85, 247, 0.35); border-radius: 1px; }
+        }
+        @keyframes pathDfs {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(1.0); background-color: var(--dfs-primary); box-shadow: 0 0 8px var(--dfs-primary); }
+        }
+
+        @keyframes visitedDijkstra {
+            0% { transform: scale(0.3); border-radius: 100%; }
+            100% { transform: scale(1.0); background-color: rgba(0, 243, 255, 0.2); border-radius: 1px; }
+        }
+        @keyframes pathDijkstra {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(1.0); background-color: var(--dijkstra-primary); box-shadow: 0 0 8px var(--dijkstra-primary); }
+        }
+
+        @keyframes visitedAstar {
+            0% { transform: scale(0.3); border-radius: 100%; }
+            100% { transform: scale(1.0); background-color: rgba(236, 72, 153, 0.2); border-radius: 1px; }
+        }
+        @keyframes pathAstar {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(1.0); background-color: var(--astar-primary); box-shadow: 0 0 8px var(--astar-primary); }
+        }
     </style>
 </head>
 <body>
@@ -845,15 +935,26 @@
         <div class="simulation-container">
             <div class="sidebar">
                 <h3 class="section-title"><i class="fa-solid fa-network-wired"></i> Connectivité (DFS)</h3>
-                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
-                    DFS s'oppose à Dijkstra et A* pour valider l'existence d'un chemin. Double-cliquez pour déplacer <strong>Départ</strong> et <strong>Arrivée</strong>.
+                <p style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.75rem;">
+                    DFS s'oppose à Dijkstra et A* pour valider la connectivité (l'existence d'un chemin) dans un environnement discret (grille).
+                    <br><br>
+                    <strong>Instructions :</strong>
+                    <br>
+                    • Cliquez et glissez sur les grilles pour <strong>ajouter/supprimer des obstacles</strong> (murs).
+                    <br>
+                    • Glissez les cases <strong>Départ</strong> (verte) et <strong>Arrivée</strong> (rouge) pour les déplacer.
+                    <br>
+                    • Les trois grilles sont <strong>synchronisées</strong> en temps réel.
                 </p>
 
-                <button class="btn btn-primary" onclick="runDfsConnectivity()"><i class="fa-solid fa-play"></i> Lancer le test de connectivité</button>
-                <button class="btn" onclick="clearDfsSim()"><i class="fa-solid fa-eraser"></i> Effacer</button>
+                <button class="btn btn-primary" onclick="runDfsConnectivity()" style="width: 100%; margin-bottom: 0.5rem;"><i class="fa-solid fa-play"></i> Lancer le test</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="btn" onclick="generateRandomObstacles()"><i class="fa-solid fa-shuffle"></i> Labyrinthe</button>
+                    <button class="btn btn-danger" onclick="clearDfsGridAndWalls()"><i class="fa-solid fa-trash-can"></i> Réinitialiser</button>
+                </div>
 
                 <div class="educational-card">
-                    <span class="badge badge-dfs">DFS : Victorieux</span>
+                    <span class="badge badge-dfs">DFS : LIFO (Stack)</span>
                     <h4>Le Besoin Métier</h4>
                     <p>Pour le ping réseau, la garbage collection ou la résolution de labyrinthe, l'objectif est de vérifier <em>si</em> une connexion existe, le plus rapidement possible. La longueur ou le coût du chemin importe peu.</p>
                     
@@ -866,18 +967,47 @@
             </div>
 
             <div class="workspace">
-                <div class="map-panel">
-                    <div class="map-header">
-                        <div class="map-title"><i class="fa-solid fa-network-wired" style="color: var(--dfs-primary);"></i> Test de Connectivité Aix-en-Provence</div>
-                        <div class="legend-row">
-                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dfs-primary);"></div>DFS (Chemin trouvé)</div>
-                            <div class="legend-item"><div class="legend-color" style="background-color: var(--dijkstra-primary);"></div>Dijkstra (Chemin court)</div>
-                            <div class="legend-item"><div class="legend-color" style="background-color: var(--astar-primary);"></div>A* (Chemin court)</div>
+                <div class="grids-comparison-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; flex: 1; min-height: 0; width: 100%;">
+                    
+                    <!-- DFS Grid -->
+                    <div class="map-panel grid-panel" id="panel-dfs">
+                        <div class="map-header">
+                            <div class="map-title" style="color: var(--dfs-primary);"><i class="fa-solid fa-network-wired"></i> DFS (Profond)</div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-calculator dfs-theme"></i> <span id="grid-dfs-explored-badge">-</span> nœuds</div>
+                            </div>
+                        </div>
+                        <div class="grid-wrapper" style="flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem; overflow: auto; min-height: 250px;">
+                            <div id="grid-dfs" class="grid"></div>
                         </div>
                     </div>
-                    <div class="map-wrapper">
-                        <div id="map-dfs" class="leaflet-map"></div>
+
+                    <!-- Dijkstra Grid -->
+                    <div class="map-panel grid-panel" id="panel-dijkstra">
+                        <div class="map-header">
+                            <div class="map-title" style="color: var(--dijkstra-primary);"><i class="fa-solid fa-circle-nodes"></i> Dijkstra</div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-calculator dijkstra-theme"></i> <span id="grid-dijkstra-explored-badge">-</span> nœuds</div>
+                            </div>
+                        </div>
+                        <div class="grid-wrapper" style="flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem; overflow: auto; min-height: 250px;">
+                            <div id="grid-dijkstra" class="grid"></div>
+                        </div>
                     </div>
+
+                    <!-- A* Grid -->
+                    <div class="map-panel grid-panel" id="panel-astar">
+                        <div class="map-header">
+                            <div class="map-title" style="color: var(--astar-primary);"><i class="fa-solid fa-compass"></i> A* (Manhattan)</div>
+                            <div class="stats-badge-container">
+                                <div class="stats-badge"><i class="fa-solid fa-calculator astar-theme"></i> <span id="grid-astar-explored-badge">-</span> nœuds</div>
+                            </div>
+                        </div>
+                        <div class="grid-wrapper" style="flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem; overflow: auto; min-height: 250px;">
+                            <div id="grid-astar" class="grid"></div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Comparison Table -->
@@ -899,7 +1029,7 @@
                                 <td style="font-weight: 700; color: var(--dfs-primary);">DFS (Depth-First Search)</td>
                                 <td id="dfs-res-dfs-time" style="font-weight: bold; color: var(--start-color);">- ms</td>
                                 <td id="dfs-res-dfs-nodes">-</td>
-                                <td id="dfs-res-dfs-dist" style="color: var(--text-muted);">- m</td>
+                                <td id="dfs-res-dfs-dist" style="color: var(--text-muted);">- pas</td>
                                 <td style="color: var(--end-color); font-weight: bold;">Non optimal (Quelconque)</td>
                                 <td style="font-weight: bold; color: var(--start-color);">O(1) insertion (Stack)</td>
                             </tr>
@@ -907,7 +1037,7 @@
                                 <td style="font-weight: 700; color: var(--dijkstra-primary);">Dijkstra</td>
                                 <td id="dfs-res-dijkstra-time">- ms</td>
                                 <td id="dfs-res-dijkstra-nodes">-</td>
-                                <td id="dfs-res-dijkstra-dist">- m</td>
+                                <td id="dfs-res-dijkstra-dist">- pas</td>
                                 <td style="color: var(--start-color);">100% Optimal (Plus court)</td>
                                 <td>O(log N) insertion (Heap)</td>
                             </tr>
@@ -915,7 +1045,7 @@
                                 <td style="font-weight: 700; color: var(--astar-primary);">A* (Heuristique)</td>
                                 <td id="dfs-res-astar-time">- ms</td>
                                 <td id="dfs-res-astar-nodes">-</td>
-                                <td id="dfs-res-astar-dist">- m</td>
+                                <td id="dfs-res-astar-dist">- pas</td>
                                 <td style="color: var(--start-color);">100% Optimal (Plus court)</td>
                                 <td>O(log N) insertion (Heap)</td>
                             </tr>
@@ -931,8 +1061,8 @@
     <!-- ================================================================= -->
     <div id="sim-overlay" class="sim-overlay">
         <span class="loader"></span>
-        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.05em;">CALCUL ROUTIER SUR OPENSTREETMAP...</div>
-        <div style="color: var(--text-muted); font-size: 0.8rem;">Calcul des pondérations réelles en Python...</div>
+        <div id="sim-overlay-title" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.05em;">CALCUL ROUTIER SUR OPENSTREETMAP...</div>
+        <div id="sim-overlay-detail" style="color: var(--text-muted); font-size: 0.8rem;">Calcul des pondérations réelles en Python...</div>
     </div>
 
     <footer>
@@ -951,6 +1081,15 @@
         };
         let isAnimating = false;
         let animationTimers = [];
+
+        // Grid DFS state
+        const dfsGridSize = 20;
+        let dfsGridStart = [2, 2];
+        let dfsGridEnd = [17, 17];
+        let dfsGridObstacles = new Set();
+        let isMouseDown = false;
+        let dragMode = null;
+        let completedAnimCount = 0;
 
         // Scenario Locations in Aix-en-Provence
         let startLatLngIso = [43.5297, 5.4474];
@@ -993,26 +1132,8 @@
             setupStartMarker('eco', startLatLngEco);
             setupEndMarker('eco', endLatLngEco);
 
-            // 4. DFS Connectivity Map
-            maps.dfs = L.map('map-dfs', { doubleClickZoom: false }).setView(startLatLngDfs, 14);
-            L.tileLayer(tileUrl, { attribution }).addTo(maps.dfs);
-            setupStartMarker('dfs', startLatLngDfs);
-            setupEndMarker('dfs', endLatLngDfs);
-            maps.dfs.on('dblclick', (e) => {
-                if (isAnimating) return;
-                const latlng = e.latlng;
-                const distStart = Math.pow(latlng.lat - startLatLngDfs[0], 2) + Math.pow(latlng.lng - startLatLngDfs[1], 2);
-                const distEnd = Math.pow(latlng.lat - endLatLngDfs[0], 2) + Math.pow(latlng.lng - endLatLngDfs[1], 2);
-
-                if (distStart < distEnd) {
-                    startLatLngDfs = [latlng.lat, latlng.lng];
-                    setupStartMarker('dfs', startLatLngDfs);
-                } else {
-                    endLatLngDfs = [latlng.lat, latlng.lng];
-                    setupEndMarker('dfs', endLatLngDfs);
-                }
-                clearDfsSim();
-            });
+            // 4. DFS Connectivity Grids
+            initDfsGrids();
             maps.eco.on('dblclick', (e) => {
                 if (isAnimating) return;
                 const latlng = e.latlng;
@@ -1051,15 +1172,11 @@
                 } else if (scenario === 'eco') {
                     startLatLngEco = coords;
                     clearEcoSim();
-                } else if (scenario === 'dfs') {
-                    startLatLngDfs = coords;
-                    clearDfsSim();
                 }
             });
             markers[scenario + '_start'].on('dragend', () => {
                 if (scenario === 'isochrone') runIsochrone();
                 else if (scenario === 'eco') runEcoRouting();
-                else if (scenario === 'dfs') runDfsConnectivity();
             });
         }
 
@@ -1079,14 +1196,10 @@
                 if (scenario === 'eco') {
                     endLatLngEco = [ll.lat, ll.lng];
                     clearEcoSim();
-                } else if (scenario === 'dfs') {
-                    endLatLngDfs = [ll.lat, ll.lng];
-                    clearDfsSim();
                 }
             });
             markers[scenario + '_end'].on('dragend', () => {
                 if (scenario === 'eco') runEcoRouting();
-                else if (scenario === 'dfs') runDfsConnectivity();
             });
         }
 
@@ -1110,7 +1223,6 @@
             setTimeout(() => {
                 if (tabId === 'tab-isochrone') maps.isochrone.invalidateSize();
                 else if (tabId === 'tab-eco') maps.eco.invalidateSize();
-                else if (tabId === 'tab-dfs') maps.dfs.invalidateSize();
             }, 50);
         }
 
@@ -1148,6 +1260,11 @@
             if (isAnimating) return;
             stopAllAnimations();
             clearIsochrone();
+            // Update overlay text dynamically
+            const overlayTitle = document.getElementById('sim-overlay-title');
+            const overlayDetail = document.getElementById('sim-overlay-detail');
+            if (overlayTitle) overlayTitle.textContent = "CALCUL D'ACCESSIBILITÉ (DIJKSTRA)...";
+            if (overlayDetail) overlayDetail.textContent = "Calcul des isochrones sur le réseau d'Aix-en-Provence...";
             showOverlay();
 
             const timeLimit = parseFloat(document.getElementById('iso-time-slider').value);
@@ -1313,6 +1430,11 @@
             if (isAnimating) return;
             stopAllAnimations();
             clearEcoSim();
+            // Update overlay text dynamically
+            const overlayTitle = document.getElementById('sim-overlay-title');
+            const overlayDetail = document.getElementById('sim-overlay-detail');
+            if (overlayTitle) overlayTitle.textContent = "CALCUL D'ÉCO-ROUTAGE (DIJKSTRA / A*)...";
+            if (overlayDetail) overlayDetail.textContent = "Calcul des profils topographiques en Python...";
             showOverlay();
 
             try {
@@ -1556,10 +1678,169 @@
         // =================================================================
         // SCENARIO 4: DFS CONNECTIVITY
         // =================================================================
-        function clearDfsSim() {
-            layers.dfs.forEach(l => maps.dfs.removeLayer(l));
-            layers.dfs = [];
+        // =================================================================
+        // SCENARIO 4: DFS CONNECTIVITY (GRIDS)
+        // =================================================================
+        function initDfsGrids() {
+            const algos = ['dfs', 'dijkstra', 'astar'];
+            algos.forEach(algo => {
+                const gridEl = document.getElementById(`grid-${algo}`);
+                if (!gridEl) return;
+                gridEl.innerHTML = '';
+                
+                gridEl.style.gridTemplateRows = `repeat(${dfsGridSize}, 1fr)`;
+                gridEl.style.gridTemplateColumns = `repeat(${dfsGridSize}, 1fr)`;
+                
+                // Capped at a responsive cell size
+                const cellWidth = 14; 
+                gridEl.style.width = `${cellWidth * dfsGridSize}px`;
+                gridEl.style.height = `${cellWidth * dfsGridSize}px`;
+                
+                for (let r = 0; r < dfsGridSize; r++) {
+                    for (let c = 0; c < dfsGridSize; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.setAttribute('data-r', r);
+                        cell.setAttribute('data-c', c);
+                        
+                        // Mouse events for wall drawing & point dragging
+                        cell.addEventListener('mousedown', (e) => {
+                            if (isAnimating) return;
+                            e.preventDefault();
+                            isMouseDown = true;
+                            
+                            if (r === dfsGridStart[0] && c === dfsGridStart[1]) {
+                                dragMode = 'start';
+                            } else if (r === dfsGridEnd[0] && c === dfsGridEnd[1]) {
+                                dragMode = 'end';
+                            } else if (dfsGridObstacles.has(`${r},${c}`)) {
+                                dragMode = 'clear';
+                                dfsGridObstacles.delete(`${r},${c}`);
+                            } else {
+                                dragMode = 'obstacle';
+                                dfsGridObstacles.add(`${r},${c}`);
+                            }
+                            syncGrids();
+                        });
+                        
+                        cell.addEventListener('mouseenter', () => {
+                            if (!isMouseDown || isAnimating) return;
+                            
+                            const coordStr = `${r},${c}`;
+                            
+                            if (dragMode === 'start') {
+                                if (coordStr !== `${dfsGridEnd[0]},${dfsGridEnd[1]}` && !dfsGridObstacles.has(coordStr)) {
+                                    dfsGridStart = [r, c];
+                                }
+                            } else if (dragMode === 'end') {
+                                if (coordStr !== `${dfsGridStart[0]},${dfsGridStart[1]}` && !dfsGridObstacles.has(coordStr)) {
+                                    dfsGridEnd = [r, c];
+                                }
+                            } else if (dragMode === 'obstacle') {
+                                if (coordStr !== `${dfsGridStart[0]},${dfsGridStart[1]}` && coordStr !== `${dfsGridEnd[0]},${dfsGridEnd[1]}`) {
+                                    dfsGridObstacles.add(coordStr);
+                                }
+                            } else if (dragMode === 'clear') {
+                                dfsGridObstacles.delete(coordStr);
+                            }
+                            syncGrids();
+                        });
+                        
+                        gridEl.appendChild(cell);
+                    }
+                }
+            });
             
+            if (!window.hasGlobalMouseListener) {
+                window.addEventListener('mouseup', () => {
+                    isMouseDown = false;
+                    dragMode = null;
+                });
+                window.hasGlobalMouseListener = true;
+            }
+            
+            syncGrids();
+        }
+
+        function syncGrids() {
+            for (let r = 0; r < dfsGridSize; r++) {
+                for (let c = 0; c < dfsGridSize; c++) {
+                    const coordStr = `${r},${c}`;
+                    
+                    ['dfs', 'dijkstra', 'astar'].forEach(algo => {
+                        const cell = document.querySelector(`#grid-${algo} .cell[data-r="${r}"][data-c="${c}"]`);
+                        if (!cell) return;
+                        
+                        cell.className = 'cell';
+                        
+                        if (r === dfsGridStart[0] && c === dfsGridStart[1]) {
+                            cell.classList.add('start');
+                        } else if (r === dfsGridEnd[0] && c === dfsGridEnd[1]) {
+                            cell.classList.add('end');
+                        } else if (dfsGridObstacles.has(coordStr)) {
+                            cell.classList.add('obstacle');
+                        }
+                    });
+                }
+            }
+        }
+
+        function generateRandomObstacles() {
+            clearDfsSim();
+            dfsGridObstacles.clear();
+            const prob = 0.28; // 28% obstacles is great for maze connectivity
+            for (let r = 0; r < dfsGridSize; r++) {
+                for (let c = 0; c < dfsGridSize; c++) {
+                    if ((r === dfsGridStart[0] && c === dfsGridStart[1]) || (r === dfsGridEnd[0] && c === dfsGridEnd[1])) {
+                        continue;
+                    }
+                    if (Math.random() < prob) {
+                        dfsGridObstacles.add(`${r},${c}`);
+                    }
+                }
+            }
+            syncGrids();
+        }
+
+        function clearDfsGridAndWalls() {
+            stopAllAnimations();
+            dfsGridObstacles.clear();
+            dfsGridStart = [2, 2];
+            dfsGridEnd = [17, 17];
+            clearDfsSim();
+            syncGrids();
+        }
+
+        function clearDfsSim() {
+            stopAllAnimations();
+            
+            // Clear stats badge counts
+            ['dfs', 'dijkstra', 'astar'].forEach(algo => {
+                const badge = document.getElementById(`grid-${algo}-explored-badge`);
+                if (badge) badge.textContent = '-';
+            });
+
+            // Reset grid cells styling, keeping start, end and obstacles
+            for (let r = 0; r < dfsGridSize; r++) {
+                for (let c = 0; c < dfsGridSize; c++) {
+                    const coordStr = `${r},${c}`;
+                    ['dfs', 'dijkstra', 'astar'].forEach(algo => {
+                        const cell = document.querySelector(`#grid-${algo} .cell[data-r="${r}"][data-c="${c}"]`);
+                        if (cell) {
+                            cell.className = 'cell';
+                            if (r === dfsGridStart[0] && c === dfsGridStart[1]) {
+                                cell.classList.add('start');
+                            } else if (r === dfsGridEnd[0] && c === dfsGridEnd[1]) {
+                                cell.classList.add('end');
+                            } else if (dfsGridObstacles.has(coordStr)) {
+                                cell.classList.add('obstacle');
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Clear table values
             document.getElementById('dfs-res-dijkstra-time').textContent = '- ms';
             document.getElementById('dfs-res-astar-time').textContent = '- ms';
             document.getElementById('dfs-res-dfs-time').textContent = '- ms';
@@ -1568,153 +1849,130 @@
             document.getElementById('dfs-res-astar-nodes').textContent = '-';
             document.getElementById('dfs-res-dfs-nodes').textContent = '-';
 
-            document.getElementById('dfs-res-dijkstra-dist').textContent = '- m';
-            document.getElementById('dfs-res-astar-dist').textContent = '- m';
-            document.getElementById('dfs-res-dfs-dist').textContent = '- m';
+            document.getElementById('dfs-res-dijkstra-dist').textContent = '- pas';
+            document.getElementById('dfs-res-astar-dist').textContent = '- pas';
+            document.getElementById('dfs-res-dfs-dist').textContent = '- pas';
         }
 
         async function runDfsConnectivity() {
             if (isAnimating) return;
             stopAllAnimations();
             clearDfsSim();
+            
+            // Update overlay text dynamically
+            const overlayTitle = document.getElementById('sim-overlay-title');
+            const overlayDetail = document.getElementById('sim-overlay-detail');
+            if (overlayTitle) overlayTitle.textContent = "RÉSOLUTION SUR GRILLE (DFS / DIJKSTRA / A*)...";
+            if (overlayDetail) overlayDetail.textContent = "Recherche d'un chemin de connectivité discret...";
+            
             showOverlay();
 
+            const payload = {
+                rows: dfsGridSize,
+                cols: dfsGridSize,
+                start: dfsGridStart,
+                end: dfsGridEnd,
+                obstacles: Array.from(dfsGridObstacles).map(str => {
+                    const [r, c] = str.split(',').map(Number);
+                    return [r, c];
+                }),
+                algorithm: 'both',
+                heuristic: 'manhattan'
+            };
+
             try {
-                const response = await fetch('/api/scenarios/dfs_connectivity', {
+                const response = await fetch('/api/solve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        start: startLatLngDfs,
-                        end: endLatLngDfs
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) throw new Error("Erreur serveur.");
                 const data = await response.json();
                 hideOverlay();
 
-                // Snap coordinates
-                startLatLngDfs = data.meta.start_coords;
-                endLatLngDfs = data.meta.end_coords;
-                setupStartMarker('dfs', startLatLngDfs);
-                setupEndMarker('dfs', endLatLngDfs);
-
-                animateDfsResults(data);
+                animateDfsGridResults(data);
             } catch (err) {
                 hideOverlay();
-                alert(err.message);
+                alert("Erreur lors de la simulation : " + err.message);
             }
         }
 
-        function animateDfsResults(data) {
+        function animateDfsGridResults(data) {
             isAnimating = true;
-            const dExplored = data.dijkstra.explored;
-            const aExplored = data.astar.explored;
-            const dfsExplored = data.dfs.explored;
+            completedAnimCount = 0;
             
-            let dIdx = 0, aIdx = 0, dfsIdx = 0;
-            const dBatch = Math.max(1, Math.floor(dExplored.length / 50));
-            const aBatch = Math.max(1, Math.floor(aExplored.length / 50));
-            const dfsBatch = Math.max(1, Math.floor(dfsExplored.length / 50));
-
-            const timer = setInterval(() => {
-                let active = false;
-
-                // Animate Dijkstra nodes (cyan)
-                for (let i = 0; i < dBatch; i++) {
-                    if (dIdx < dExplored.length) {
-                        const m = L.circleMarker([dExplored[dIdx][0], dExplored[dIdx][1]], {
-                            radius: 3,
-                            color: colors.dijkstra,
-                            weight: 1,
-                            fillColor: colors.dijkstra,
-                            fillOpacity: 0.15
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(m);
-                        dIdx++;
-                        active = true;
-                    }
-                }
-
-                // Animate A* nodes (pink)
-                for (let i = 0; i < aBatch; i++) {
-                    if (aIdx < aExplored.length) {
-                        const m = L.circleMarker([aExplored[aIdx][0], aExplored[aIdx][1]], {
-                            radius: 3,
-                            color: colors.astar,
-                            weight: 1,
-                            fillColor: colors.astar,
-                            fillOpacity: 0.15
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(m);
-                        aIdx++;
-                        active = true;
-                    }
-                }
-
-                // Animate DFS nodes (violet/purple)
-                for (let i = 0; i < dfsBatch; i++) {
-                    if (dfsIdx < dfsExplored.length) {
-                        const m = L.circleMarker([dfsExplored[dfsIdx][0], dfsExplored[dfsIdx][1]], {
-                            radius: 3,
-                            color: colors.dfs,
-                            weight: 1,
-                            fillColor: colors.dfs,
-                            fillOpacity: 0.15
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(m);
-                        dfsIdx++;
-                        active = true;
-                    }
-                }
-
-                if (!active) {
-                    clearInterval(timer);
+            ['dfs', 'dijkstra', 'astar'].forEach(algo => {
+                const explored = data[algo].explored;
+                const path = data[algo].path;
+                animateAlgoGrid(algo, explored, path);
+            });
+            
+            // Periodically check if all animations have completed to write stats table
+            const checkTimer = setInterval(() => {
+                if (completedAnimCount === 3) {
+                    clearInterval(checkTimer);
                     isAnimating = false;
-
-                    // Draw paths
-                    if (data.dijkstra.path) {
-                        const p = L.polyline(data.dijkstra.path, {
-                            color: colors.dijkstra,
-                            weight: 5,
-                            opacity: 0.85
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(p);
-                    }
-
-                    if (data.astar.path) {
-                        const p = L.polyline(data.astar.path, {
-                            color: colors.astar,
-                            weight: 5,
-                            opacity: 0.85
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(p);
-                    }
-
-                    if (data.dfs.path) {
-                        const p = L.polyline(data.dfs.path, {
-                            color: colors.dfs,
-                            weight: 5,
-                            opacity: 0.85
-                        }).addTo(maps.dfs);
-                        layers.dfs.push(p);
-                    }
-
-                    // Write stats
-                    document.getElementById('dfs-res-dijkstra-time').textContent = `${data.dijkstra.duration_ms.toFixed(1)} ms`;
-                    document.getElementById('dfs-res-astar-time').textContent = `${data.astar.duration_ms.toFixed(1)} ms`;
-                    document.getElementById('dfs-res-dfs-time').textContent = `${data.dfs.duration_ms.toFixed(1)} ms`;
-
-                    document.getElementById('dfs-res-dijkstra-nodes').textContent = data.dijkstra.explored_count;
-                    document.getElementById('dfs-res-astar-nodes').textContent = data.astar.explored_count;
-                    document.getElementById('dfs-res-dfs-nodes').textContent = data.dfs.explored_count;
-
-                    document.getElementById('dfs-res-dijkstra-dist').textContent = `${data.dijkstra.length_m.toFixed(0)} m`;
-                    document.getElementById('dfs-res-astar-dist').textContent = `${data.astar.length_m.toFixed(0)} m`;
-                    document.getElementById('dfs-res-dfs-dist').textContent = `${data.dfs.length_m.toFixed(0)} m`;
+                    
+                    // Write statistics to table
+                    ['dijkstra', 'astar', 'dfs'].forEach(algo => {
+                        const res = data[algo];
+                        document.getElementById(`dfs-res-${algo}-time`).textContent = `${res.duration_ms.toFixed(3)} ms`;
+                        document.getElementById(`dfs-res-${algo}-nodes`).textContent = res.nodes_explored_count;
+                        
+                        const distEl = document.getElementById(`dfs-res-${algo}-dist`);
+                        if (res.path && res.path.length > 0) {
+                            distEl.textContent = `${res.path.length} pas`;
+                            distEl.style.color = '';
+                        } else {
+                            distEl.textContent = 'Bloqué';
+                            distEl.style.color = 'var(--end-color)';
+                        }
+                    });
                 }
-            }, 20);
+            }, 100);
+        }
 
+        function animateAlgoGrid(algo, explored, path) {
+            let idx = 0;
+            const interval = 15; // 15ms expansion per cell
+            
+            const timer = setInterval(() => {
+                if (idx >= explored.length) {
+                    clearInterval(timer);
+                    
+                    // Reconstruct path if one was found
+                    if (path && path.length > 0) {
+                        path.forEach(node => {
+                            const [r, c] = node;
+                            if ((r === dfsGridStart[0] && c === dfsGridStart[1]) || (r === dfsGridEnd[0] && c === dfsGridEnd[1])) {
+                                return;
+                            }
+                            const cell = document.querySelector(`#grid-${algo} .cell[data-r="${r}"][data-c="${c}"]`);
+                            if (cell) {
+                                cell.classList.add(`path-${algo}`);
+                            }
+                        });
+                    }
+                    
+                    completedAnimCount++;
+                    return;
+                }
+                
+                const [r, c] = explored[idx];
+                if (!((r === dfsGridStart[0] && c === dfsGridStart[1]) || (r === dfsGridEnd[0] && c === dfsGridEnd[1]))) {
+                    const cell = document.querySelector(`#grid-${algo} .cell[data-r="${r}"][data-c="${c}"]`);
+                    if (cell) {
+                        cell.classList.add(`visited-${algo}`);
+                    }
+                }
+                
+                const badge = document.getElementById(`grid-${algo}-explored-badge`);
+                if (badge) badge.textContent = idx + 1;
+                
+                idx++;
+            }, interval);
+            
             animationTimers.push(timer);
         }
 
