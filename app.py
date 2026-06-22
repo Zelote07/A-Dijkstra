@@ -394,14 +394,6 @@ def scenarios():
     return render_template('scenarios.html')
 
 
-@app.route('/theorie')
-def theorie():
-    """
-    Renders the dedicated academic report and theoretical overview page.
-    """
-    return render_template('theorie.html')
-
-
 @app.route('/api/scenarios/isochrone', methods=['POST'])
 def api_scenarios_isochrone():
     """
