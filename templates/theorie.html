@@ -770,6 +770,19 @@
                     <p>
                         <strong>La suprématie de Dijkstra :</strong> C'est ici que Dijkstra brille. Comme il s'étend de manière uniforme et concentrique sans se soucier d'une destination, il suffit de modifier très légèrement sa condition d'arrêt : au lieu de lui dire <em>"Arrête-toi quand tu trouves le point B"</em>, on lui dit <em>"Arrête-toi quand le temps cumulé dépasse 15 minutes"</em>. Dijkstra inonde le réseau et s'arrête à la frontière temporelle. Les nœuds visités délimitent précisément la zone d'accessibilité géospatiale.
                     </p>
+                    <p>
+                        <strong>Calcul des minima :</strong>
+                        Dijkstra calcule le temps minimum $d(v) = \min(d(v), d(u) + w(u,v))$ avec $w(u,v) = \frac{\text{longueur}}{\text{vitesse}}$. La file de priorité (Min-Heap) extrait à chaque étape le nœud de coût cumulé minimal, garantissant que lors de sa visite, sa distance minimale absolue est atteinte. La zone est délimitée par $\{v \in V \mid d(v) \le T\}$.
+                    </p>
+                    <p>
+                        <strong>Biais de cohérence dans le monde réel :</strong>
+                    </p>
+                    <ul style="margin-left: 1.5rem; margin-bottom: 1.25rem;">
+                        <li><strong>Sens uniques :</strong> L'accessibilité est asymétrique (isochrone sortante vs entrante).</li>
+                        <li><strong>Vitesses théoriques :</strong> Temps calculés sur les limites OSM sans congestion ni feux.</li>
+                        <li><strong>Snapping :</strong> Le départ GPS est projeté sur la route la plus proche, omettant l'accès initial.</li>
+                        <li><strong>Pénalités d'intersection :</strong> Pas de coût de temps de manœuvre (considéré instantané).</li>
+                    </ul>
                 </div>
 
                 <!-- SCENARIO 2 -->

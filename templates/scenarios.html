@@ -13,6 +13,12 @@
     <!-- Leaflet.js -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- KaTeX for beautiful math equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false});"></script>
+
 
     <style>
         :root {
@@ -619,13 +625,25 @@
                 <div class="educational-card">
                     <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
                     <h4>Le Besoin Métier</h4>
-                    <p>En logistique ou services d'urgence, on cherche à cartographier une zone globale d'action (les clients livrables en moins de 15 min, ou le périmètre d'action d'une ambulance).</p>
+                    <p>Calculer la zone d'action globale (ex. livraisons < 15 min, périmètre de secours).</p>
                     
                     <h4>Pourquoi A* échoue ?</h4>
-                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> <strong>Paralysie totale.</strong> A* a besoin d'une cible unique précise (Point B) pour calculer son heuristique spatiale. Sans Point B, A* est incapable de calculer une direction et ne peut pas fonctionner.</p>
+                    <p class="text-error" style="color: #fca5a5;"><i class="fa-solid fa-circle-xmark"></i> A* requiert une cible unique (Point B) pour calculer son heuristique spatiale. Sans cible, il ne peut pas fonctionner.</p>
                     
                     <h4>Le Pouvoir de Dijkstra</h4>
-                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Exploration radiale uniforme.</strong> Dijkstra avance par ondes régulières sans viser de cible. En arrêtant Dijkstra dès que le coût dépasse 15 min, il inonde naturellement le réseau routier et s'arrête pile à la frontière temporelle.</p>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> Exploration uniforme multidirectionnelle arrêtée dès que le coût dépasse la limite.</p>
+
+                    <h4 style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; margin-top: 0.5rem;">Calcul du Temps de Parcours</h4>
+                    <p style="color: #93c5fd; font-size: 0.72rem; line-height: 1.3; margin-bottom: 0.3rem;">
+                        $\text{Temps} = \sum \frac{\text{longueur (m)}}{\text{vitesse (m/s)}}$. Les vitesses proviennent d'OSM (ex. 50 km/h).
+                    </p>
+
+                    <h4 style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; margin-top: 0.5rem;">Limites & Cohérence Réelle</h4>
+                    <ul style="margin-left: 0.5rem; color: #cbd5e1; font-size: 0.72rem; padding-left: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; list-style-type: none;">
+                        <li><i class="fa-solid fa-right-left" style="color: #fb923c; margin-right: 0.3rem;"></i> <strong>Sens uniques :</strong> Portées sortante et entrante asymétriques.</li>
+                        <li><i class="fa-solid fa-gauge-high" style="color: #fb923c; margin-right: 0.3rem;"></i> <strong>Vitesses statiques :</strong> Aucun impact de trafic ou feux tricolores.</li>
+                        <li><i class="fa-solid fa-magnet" style="color: #fb923c; margin-right: 0.3rem;"></i> <strong>Ancrage (Snapping) :</strong> Le départ est projeté sur la route la plus proche.</li>
+                    </ul>
                 </div>
             </div>
 
@@ -720,13 +738,28 @@
                 <div class="educational-card">
                     <span class="badge badge-dijkstra">Dijkstra : Victorieux</span>
                     <h4>Le Besoin Métier</h4>
-                    <p>Pour un véhicule électrique en montagne, monter consomme énormément, tandis que descendre régénère la batterie (freinage régénératif). Le trajet le plus économe en Wh n'est pas le plus court en kilomètres.</p>
+                    <p>Minimiser l'énergie consommée (Wh) sur un relief incluant la régénération (descente).</p>
                     
-                    <h4>Pourquoi A* est mis en défaut ?</h4>
-                    <p class="text-warning" style="color: #fde047;"><i class="fa-solid fa-triangle-exclamation"></i> <strong>Heuristique biaisée.</strong> L'heuristique géométrique de A* (distance à vol d'oiseau) pousse l'algorithme à aller "tout droit" à travers le relief. Ignorant le coût gravitationnel énorme de la grimpette, A* choisit un chemin sur-consommateur d'énergie.</p>
+                    <h4>Pourquoi A* échoue ?</h4>
+                    <p class="text-warning" style="color: #fde047;"><i class="fa-solid fa-triangle-exclamation"></i> L'heuristique géométrique 2D ignore le dénivelé et attire A* à travers la montagne (chemin le plus court en distance).</p>
                     
-                    <h4>La Supériorité de Dijkstra</h4>
-                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> <strong>Respect strict de la physique.</strong> Sans biais géométrique 2D, Dijkstra examine uniquement le coût énergétique réel. Il choisira de faire un détour par la vallée plate ou descendante car cela préserve la batterie.</p>
+                    <h4>Le Pouvoir de Dijkstra</h4>
+                    <p class="text-success" style="color: #a7f3d0;"><i class="fa-solid fa-circle-check"></i> Sans biais géographique, il examine le coût physique réel et contourne la montagne par la vallée.</p>
+
+                    <h4 style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; margin-top: 0.5rem;">Calcul du Coût Énergétique (Wh)</h4>
+                    <p style="color: #93c5fd; font-size: 0.72rem; line-height: 1.3; margin-bottom: 0.3rem;">
+                        $E = \max(1.0, E_{\text{frottement}} + E_{\text{gravité}})$
+                    </p>
+                    <ul style="margin-left: 0.5rem; color: #cbd5e1; font-size: 0.72rem; padding-left: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem; list-style-type: none; margin-bottom: 0.3rem;">
+                        <li>• <strong>Frottement :</strong> $0.15 \text{ Wh/m} \times \text{distance}$.</li>
+                        <li>• <strong>Gravité :</strong> $+4.09 \text{ Wh/m}$ par mètre grimpé, $-2.45 \text{ Wh/m}$ par mètre descendu.</li>
+                        <li>• <strong>Seuil minimal (1.0 Wh) :</strong> Empêche les cycles de coût négatif.</li>
+                    </ul>
+
+                    <h4 style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.5rem; margin-top: 0.5rem;">Heuristique de A* (Non Admissible)</h4>
+                    <p style="color: #fca5a5; font-size: 0.72rem; line-height: 1.3;">
+                        A* estime le coût restant par $h(n) = \text{dist}_{\text{vol\_oiseau}} \times 0.15$ Wh. Or, la régénération en descente permet un coût réel inférieur à cette estimation plane. L'heuristique <strong>surestime</strong> donc le coût ($h(n) > h^*(n)$), violant l'admissibilité et détruisant la garantie d'optimalité de A*.
+                    </p>
                 </div>
             </div>
 
