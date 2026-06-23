@@ -856,13 +856,12 @@
                                     <th>Écart-Type (Volatilité)</th>
                                     <th>Intervalle de Confiance (95%)</th>
                                     <th>Fiabilité (90e Percentile)</th>
-                                    <th>Optimality Gap (%)</th>
                                     <th>Calcul (Moyen)</th>
                                     <th>Nœuds Explorés</th>
                                 </tr>
                             </thead>
                             <tbody id="mc-osm-stats-body">
-                                <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Lancez une simulation pour afficher les statistiques de votre mémoire.</td></tr>
+                                <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Lancez une simulation pour afficher les statistiques de votre mémoire.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1064,10 +1063,7 @@
                     <strong style="color: var(--text-main); font-size: 0.78rem;"><i class="fa-solid fa-shield-halved" style="color: var(--dijkstra-primary); margin-right: 0.3rem;"></i> Fiabilité (90e Percentile)</strong>
                     <p style="margin: 0.2rem 0 0 0; text-align: justify;">Représente le temps de parcours maximal observé dans 90% des scénarios. C'est la référence pour les livraisons de colis "à temps" ou le calcul des marges de sécurité routières.</p>
                 </div>
-                <div>
-                    <strong style="color: var(--text-main); font-size: 0.78rem;"><i class="fa-solid fa-arrow-trend-up" style="color: var(--dijkstra-primary); margin-right: 0.3rem;"></i> Optimality Gap (%)</strong>
-                    <p style="margin: 0.2rem 0 0 0; text-align: justify;">Écart moyen en pourcentage par rapport au chemin idéal calculé en temps réel par Dijkstra Dynamique. Traduit l'inefficacité d'une stratégie de planification face à l'imprévu.</p>
-                </div>
+
                 <div>
                     <strong style="color: var(--text-main); font-size: 0.78rem;"><i class="fa-solid fa-microchip" style="color: var(--dijkstra-primary); margin-right: 0.3rem;"></i> Calcul (Moyen)</strong>
                     <p style="margin: 0.2rem 0 0 0; text-align: justify;">Temps moyen de calcul informatique (en millisecondes) requis pour concevoir l'itinéraire. A* est optimisé pour minimiser cette durée en limitant la recherche spatiale.</p>
@@ -1246,7 +1242,6 @@
                     <td>${s.success_rate_pct > 0 ? s.std_travel_time_sec.toFixed(1) + ' sec' : 'N/A'}</td>
                     <td style="font-size: 0.75rem; color: var(--text-muted);">${s.success_rate_pct > 0 ? `[${(s.ci_95_sec[0]/60.0).toFixed(2)}, ${(s.ci_95_sec[1]/60.0).toFixed(2)}] min` : 'N/A'}</td>
                     <td>${s.success_rate_pct > 0 ? (s.p90_travel_time_sec/60.0).toFixed(2) + ' min' : 'N/A'}</td>
-                    <td class="${s.mean_optimality_gap_pct == 0.0 ? 'text-success' : 'text-warning'}" style="font-weight: 700;">${s.mean_optimality_gap_pct}%</td>
                     <td style="font-size: 0.75rem; color: var(--text-muted);">${s.mean_computation_ms.toFixed(2)} ms</td>
                     <td>${s.mean_nodes_explored}</td>
                 `;
@@ -1389,8 +1384,6 @@
                 let label = `Essai #${r.trial} - [Dij: ${dState} | A*: ${aState} | DFS: ${dfsState}]`;
                 if (!r.dijkstra.success) {
                     label += ' ⚠️ Réseau Déconnecté';
-                } else if (r.dfs.success && r.dfs.optimality_gap_pct > 15.0) {
-                    label += ` ⚡ Gap DFS (+${r.dfs.optimality_gap_pct.toFixed(0)}%)`;
                 }
 
                 const opt = document.createElement('option');
@@ -1452,18 +1445,10 @@
 
             const detailsDiv = document.getElementById('inspector-trial-details');
             
-            const dfsGapText = trial.dfs.success && trial.dfs.optimality_gap_pct !== null
-                ? `<span style="font-weight:700;" class="${trial.dfs.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.dfs.optimality_gap_pct.toFixed(1)}%</span>`
-                : 'N/A (Bloqué)';
-
-            const astarGapText = trial.astar.success && trial.astar.optimality_gap_pct !== null
-                ? `<span style="font-weight:700;" class="${trial.astar.optimality_gap_pct > 15.0 ? 'text-warning' : 'text-success'}">+${trial.astar.optimality_gap_pct.toFixed(1)}%</span>`
-                : 'N/A (Bloqué)';
-
             detailsDiv.innerHTML = `
                 <div><strong>Dijkstra</strong>: ${trial.dijkstra.success ? (trial.dijkstra.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
-                <div><strong>A*</strong>: ${trial.astar.success ? (trial.astar.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'} (Gap: ${astarGapText})</div>
-                <div><strong>DFS</strong>: ${trial.dfs.success ? (trial.dfs.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'} (Gap: ${dfsGapText})</div>
+                <div><strong>A*</strong>: ${trial.astar.success ? (trial.astar.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
+                <div><strong>DFS</strong>: ${trial.dfs.success ? (trial.dfs.travel_time_sec/60.0).toFixed(2) + ' min' : '<span class="text-error">Bloqué</span>'}</div>
                 <div style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
                     Itinéraires inspectés : <span style="color: ${colors.dijkstra.primary}; font-weight:700">Cyan (Dijkstra)</span>, <span style="color: ${colors.astar.primary}; font-weight:700">Rose (A*)</span>, <span style="color: ${colors.dfs.primary}; font-weight:700">Violet pointillé (DFS)</span>.
                 </div>

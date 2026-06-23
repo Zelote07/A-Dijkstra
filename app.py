@@ -9,7 +9,7 @@ from shapely.geometry import Polygon, Point
 from typing import Set
 
 # Import our custom Monte Carlo engine
-from monte_carlo_engine import (
+from src.monte_carlo_engine import (
     run_dijkstra,
     run_astar,
     run_dfs,
@@ -22,7 +22,7 @@ from monte_carlo_engine import (
 )
 
 # Import grid pathfinder functions for real-time visualization
-from grid_pathfinder import solve_dijkstra, solve_astar, solve_dfs
+from src.grid_pathfinder import solve_dijkstra, solve_astar, solve_dfs
 
 app = Flask(__name__)
 
